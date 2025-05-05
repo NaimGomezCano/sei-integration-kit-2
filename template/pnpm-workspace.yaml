@@ -1,0 +1,7 @@
+onlyBuiltDependencies:
+  - '@sap/hana-client'
+  - '@swc/core'
+  - '@temporalio/core-bridge'
+  - esbuild
+  - msgpackr-extract
+  - protobufjs

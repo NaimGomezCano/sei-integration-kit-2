@@ -1,0 +1,7 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json,js",
+  "ignore": ["node_modules"],
+  "exec": "pnpm run build:%ENV% && pnpm run start:%ENV%",
+  "ignore": ["src/__auto_imports__.ts"]
+}

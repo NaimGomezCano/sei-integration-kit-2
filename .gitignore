@@ -1,0 +1,13 @@
+# Ignora node_modules en cualquier subcarpeta
+**/node_modules/
+**/build/
+
+# Ignora dist en cualquier parte del proyecto (ej: template/dist/)
+**/dist/
+
+# Ignora carpetas de logs y archivos .log
+**/logs/
+**/*.log
+
+# Ignora los archivos generados automáticamente
+**/__auto_imports__.ts

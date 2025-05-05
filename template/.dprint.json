@@ -1,0 +1,14 @@
+{
+  "$schema": "https://dprint.dev/schemas/v0.json",
+  "includes": ["src"],
+  "plugins": [
+    "https://plugins.dprint.dev/typescript-0.85.0.wasm",
+    "https://plugins.dprint.dev/json-0.19.0.wasm"
+  ],
+  "typescript": {
+    "lineWidth": 100,
+    "preferSingleLine": false,
+    "quoteStyle": "preferDouble",
+    "memberSpacing": "blankLine"
+  }
+}

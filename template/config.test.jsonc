@@ -1,0 +1,42 @@
+{
+  "LOG_TO_LOKI": true,
+  "LOKI_URL": "http://localhost:3100",
+  "LOG_LOKI_DEBUG": true,
+  "LOG_TO_FILE": true,
+
+  "BP_CARDCODE_SERIES": "78",
+
+  "SF_CLIENT_ID": "3MVG9gYjOgxHsENKq9lqv2rpdFEWZDA9wsbaG.O96SiF5YMBm8d0x.uDh8tV_FDI0.z4JhdxHLOYSkKHwhKHg",
+  "SF_CLIENT_SECRET": "C2BCD4D8F91C22BB44BE15E5B9D4B0133AC37FE042778656F48B32B9AEE1631E",
+  "SF_USERNAME": "integration@stpg.com",
+  "SF_PASSWORD": "NTSInteg042025",
+
+  "APP_NAME": "skintech_salesforce_integration",
+  "DEPLOY_DIR": "C:\\SeidorServices",
+
+  // Yepa la cabra
+  "SBO_DB_TYPE": "HANA",
+  "SBO_DB_HOST": "10.1.100.24",
+  "SBO_DB_PORT": "30015",
+  "SBO_DB_USER": "B1ADMIN",
+  "SBO_DB_PASSWD": "AOLqJ84ejKttvN",
+  "SBO_DB_NAME": "KURITA_ICS_MASTERDATADISTRIBUTIONTEST",
+
+  "SBO_SL_URL": "https://localhost:50000",
+  "SBO_SL_USER": "manager",
+  "SBO_SL_PASSWD": "seidor",
+  "SBO_SL_DB_NAME": "TEST_SKINTECH_ES",
+
+  "SBO_API_GATEWAY_BASE_URL": "https://10.1.100.24:60020",
+  "SBO_API_GATEWAY_USER": "sboservices",
+  "SBO_API_GATEWAY_PASSWD": "1234",
+  "SBO_API_GATEWAY_DB_NAME": "KURITA_ICS_MASTERDATADISTRIBUTIONTEST",
+
+  "APP_BASE_URL": "http://localhost",
+  "APP_PORT": "15145",
+  "JWT_SECRET": "wtf",
+  "JWT_EXPIRES_IN": "3600",
+
+  "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+  "JWT_COOKIE_NAME": "postman-seidor-access-token"
+}

@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "Debug with Hot reload",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "run-debug"],
+      "env": {
+        "NODE_ENV": "${input:envSelector}"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "type": "pwa-node",
+      "request": "launch",
+      "name": "Debug",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "start-debug"],
+      "env": {
+        "NODE_ENV": "${input:envSelector}"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "envSelector",
+      "type": "pickString",
+      "description": "Selecciona el entorno de ejecución",
+      "options": ["test", "production", "development"],
+      "default": "development"
+    }
+  ]
+}
