@@ -48,7 +48,7 @@ export default class SalesforcePricebookEntryService {
     try {
       if (item.ItemPrices?.length) {
         for (const itemPriceList of item.ItemPrices) {
-          await delay(2000)
+          await delay(1000)
           logger.info('Delay')
 
           if (itemPriceList.Price === 0) {
