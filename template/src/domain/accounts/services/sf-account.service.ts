@@ -8,7 +8,6 @@ import { SalesforceAccountRepository } from '@/domain/shared/repositories/sf/sf-
 import { SalesforceContactRepository } from '@/domain/shared/repositories/sf/sf-contact.repository'
 import { SapBusinessPartner } from '@/domain/shared/schemas/sap-business-partner.schema'
 import { SfAccount } from '@/domain/shared/schemas/sf-account.schema'
-import { SfContact } from '@/domain/shared/schemas/sf-contact.schema'
 import { areAllFieldsFilled } from '@/shared/utils/areAllFieldsFilled'
 import { delay } from '@/shared/utils/delay'
 import { requireEntity } from '@/shared/utils/require-entity.utils'
@@ -24,6 +23,17 @@ export default class SalesforceAccountService {
   private readonly statesMapper = new StatesMapper()
   private readonly countryMapper = new CountryMapper()
   private readonly industryService = new IndustryMapper()
+
+  private validatePaymentCode(codigo: string | null | undefined): string {
+    const codigosValidos = ['CONTADO (C)', 'EFECTIVO (C)', 'RD (C)', 'TAL (C)', 'TPV (C)', 'TPV VIRTUAL (C)', 'TRF (C)', 'TRF POPULAR (C)']
+
+    // Verifica si el código es nulo, indefinido, o una cadena vacía/espacios
+    if (!codigo || codigo.trim() === '') {
+      return 'OTROS'
+    }
+
+    return codigosValidos.includes(codigo.trim()) ? codigo.trim() : 'OTROS'
+  }
 
   stats = {
     total: 0,
@@ -56,7 +66,7 @@ export default class SalesforceAccountService {
       draft.Industry = this.industryService.getNameByCode(bp.Industry)
       draft.Name = bp.CardName
       draft.OwnerId = '005J9000001CrOiIAK' // null // TODO: No tenemos a los empleados integrados
-      // draft.PaymentMethod__c = bp.PeymentMethodCode
+      draft.PaymentMethod__c = this.validatePaymentCode(bp.PeymentMethodCode)
       draft.Phone = bp.Phone1
       draft.SAP_Account_Id__c = bp.CardCode
       // draft.SocialReason__c // TODO: Este campo no existe en salesforce -> draft.SocialReason__c
@@ -79,6 +89,12 @@ export default class SalesforceAccountService {
           draft.BillingPostalCode = sfBillTo.ZipCode
           draft.BillingStateCode = this.statesMapper.translateSapToSfCode(sfBillTo.State!)
           draft.BillingStreet = sfBillTo.Street
+        } else {
+          draft.BillingCity = 'Ciudad no indicada'
+          draft.BillingCountry = 'ES'
+          draft.BillingPostalCode = 'Código postal no indicado'
+          draft.BillingStateCode = 'M'
+          draft.BillingStreet = 'Dirección no indicada completamente'
         }
       }
 
@@ -100,13 +116,19 @@ export default class SalesforceAccountService {
           draft.ShippingPostalCode = sfShipTo.ZipCode
           draft.ShippingStateCode = this.statesMapper.translateSapToSfCode(sfShipTo.State!)
           draft.ShippingStreet = sfShipTo.Street
+        } else {
+          draft.ShippingCity = 'Ciudad no indicada'
+          draft.ShippingCountry = 'ES'
+          draft.ShippingPostalCode = 'Código postal no indicado'
+          draft.ShippingStateCode = 'M'
+          draft.ShippingStreet = 'Dirección no indicada completamente'
         }
       }
 
       const account = SfAccount.validateDraft(draft)
       const exists = await this.sfAccountRepo.findByCardCodeOrNull(bp.CardCode!)
 
-      if (bp.U_SEI_SFINT_ORI === 'SF') {
+      /* if (bp.U_SEI_SFINT_ORI === 'SF') {
         if (exists) {
           if (bp.UpdateDate && exists.LastModifiedDate && bp.UpdateDate > exists.LastModifiedDate) {
             result = OperationResultBuilder.success('Un Account de Salesforce ha sido actualizada en SAP').build()
@@ -116,77 +138,25 @@ export default class SalesforceAccountService {
           result = OperationResultBuilder.success('En SAP tenemos Salesforce ID pero en Salesforce no esta presente el CardCode').build()
           this.stats.conSalesforceIdPeroNoExiste++
         }
+      } else {*/
+      if (exists) {
+        await this.sfAccountRepo.update(exists.Id!, account)
+        // bp.U_SEI_SFINT_ORI = 'SF'
+        bp.U_SEI_SFID = exists.Id
+        await this.bpRepo.update(bp.CardCode!, bp)
+        result = OperationResultBuilder.success(exists).build()
+        this.stats.actualizadas++
       } else {
-        if (exists) {
-          await this.sfAccountRepo.update(exists.Id!, account)
-          bp.U_SEI_SFINT_ORI = 'SF'
-          bp.U_SEI_SFID = exists.Id
-          await this.bpRepo.update(bp.CardCode!, bp)
-          result = OperationResultBuilder.success(exists).build()
-          this.stats.actualizadas++
-        } else {
-          const created = await this.sfAccountRepo.create(account)
-          bp.U_SEI_SFINT_ORI = 'SF'
-          bp.U_SEI_SFID = created.Id
-          await this.bpRepo.update(bp.CardCode!, bp)
-          const confirmation = await requireEntity(this.bpRepo.findByIdOrNull(bp.CardCode!))
+        const created = await this.sfAccountRepo.create(account)
+        //bp.U_SEI_SFINT_ORI = 'SF'
+        bp.U_SEI_SFID = created.Id
+        await this.bpRepo.update(bp.CardCode!, bp)
+        const confirmation = await requireEntity(this.bpRepo.findByIdOrNull(bp.CardCode!))
 
-          result = OperationResultBuilder.success(created).build()
-          this.stats.creadas++
-        }
+        result = OperationResultBuilder.success(created).build()
+        this.stats.creadas++
       }
-    } catch (error) {
-      this.stats.errores++
-
-      result = handleErrorToOperationResult(error)
-      logger.error('Error al sincronizar cuenta', result)
-    }
-
-    return result
-  }
-
-  async pushSingleContact(cardCode: string, bp: typeof SapBusinessPartner.Type = {}): Promise<OperationResult> {
-    if (!bp.CardCode) {
-      // Si no se envia el objeto bp lo obtenemos nosotros
-      bp = await requireEntity(this.bpRepo.findByIdOrNull(cardCode))
-    }
-
-    const contacts = bp.ContactEmployees
-
-    let result: OperationResult | any
-    const draft: typeof SfContact.Draft = {}
-
-    try {
-      if (contacts?.length) {
-        for (const contact of contacts) {
-          draft.FirstName = contact.FirstName
-          draft.LastName = contact.LastName
-          draft.Email = contact.E_Mail
-          draft.Phone = contact.Phone1
-          draft.MobilePhone = contact.MobilePhone
-          draft.Title = contact.Title
-          draft.Department = contact.Position
-          draft.AccountId = bp.U_SEI_SFID
-
-          const newContact = SfContact.validateDraft(draft)
-          const exists = await this.sfContactRepo.findByCardCodeOrNull(bp.CardCode!)
-
-          if (exists) {
-            await this.sfContactRepo.update(exists.Id!, newContact)
-            contact.U_SEI_SFID = exists.Id
-            await this.bpRepo.update(bp.CardCode!, bp)
-            result = OperationResultBuilder.success(exists).build()
-            this.stats.actualizadas++
-          } else {
-            const created = await this.sfContactRepo.create(newContact)
-            contact.U_SEI_SFID = created.Id
-            await this.bpRepo.update(bp.CardCode!, bp)
-            const confirmation = await requireEntity(this.bpRepo.findByIdOrNull(bp.CardCode!))
-            result = OperationResultBuilder.success(created).build()
-            this.stats.creadas++
-          }
-        }
-      }
+      //}
     } catch (error) {
       this.stats.errores++
 
@@ -213,6 +183,8 @@ export default class SalesforceAccountService {
       await this.bpRepo.processAllBusinessPartners(async (partners: (typeof SapBusinessPartner.Type)[]) => {
         for (const bp of partners) {
           this.stats.total++
+
+          await delay(500)
 
           const result = await this.pushSingleAccount(bp.CardCode!, bp)
           processResult.push(result)

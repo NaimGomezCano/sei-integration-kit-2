@@ -12,12 +12,12 @@ export class ProductJobSchedules {
     }),
       schedule({
         job: itemJobs.sfCreateorUpdatePricebooksBatch,
-        cron: '0 4 * * *',
+        cron: '0 3 * * *',
         runOnInit: false,
       }),
       schedule({
         job: itemJobs.sfCreateorUpdatePricebooksEntryBatch,
-        cron: '0 6 * * *',
+        cron: '0 4 * * *',
         runOnInit: false,
       })
   }

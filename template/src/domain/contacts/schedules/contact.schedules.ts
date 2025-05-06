@@ -1,13 +1,13 @@
 import { schedule } from '@/core/croner/croner-scheduler'
 import { RegisterSchedules } from '@/core/croner/decorators'
-import { accountJobs } from '../jobs/account.jobs'
+import { contactJobs } from '../jobs/contact.jobs'
 
 @RegisterSchedules()
-export class AccountJobSchedules {
+export class ContactJobSchedules {
   scheduleJobs() {
     schedule({
-      job: accountJobs.sfCreateorUpdateAccountsBatch,
-      cron: '0 1 * * *',
+      job: contactJobs.sfCreateorUpdateContactsBatch,
+      cron: '0 5 * * *',
       runOnInit: false,
     })
   }

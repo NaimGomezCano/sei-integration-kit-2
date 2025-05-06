@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 export const SF_STD_Contact = z.object({
   Id: z.string().nullish(),
+  Name: z.string().nullish(),
   FirstName: z.string().nullish(),
   LastName: z.string().nullish(),
   Email: z.string().nullish(),

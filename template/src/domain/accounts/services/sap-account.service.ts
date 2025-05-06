@@ -30,7 +30,7 @@ export default class SapAccountService {
 
     bpDraft.U_STPG_Origin = input.U_STPG_Origin
     bpDraft.U_STPG_Type = input.STPGType
-    //bpDraft.PeymentMethodCode = input.PaymentMethodCode
+    bpDraft.PeymentMethodCode = input.PaymentMethodCode
     bpDraft.CardName = input.CardName
     bpDraft.CardForeignName = input.CardFName
     bpDraft.FederalTaxID = 'ES' + input.FederalTaxID
@@ -46,41 +46,33 @@ export default class SapAccountService {
 
     bpDraft.BPAddresses = []
 
-    // if (
-    //   this.addressService.isAddressProvided({
-    //    Street: input.BillToStreet,
-    //     ZipCode: input.BillToZipCode,
-    //     City: input.BillToCity,
-    //     Country: input.BillToCountry,
-    //     State: input.BillToState,
-    //   })
-    //) {
-    this.addressService.validateBillToAddress(input)
-    const existingBillToRowNum = this.addressService.getRowNumForUpdate(existingBp.BilltoDefault, existingBp.BPAddresses, 'bo_BillTo')
-
-    let billTo: any
-    if (existingBillToRowNum) {
-      billTo = this.addressService.buildBillToAddress(input, existingBp.BilltoDefault!, existingBp.CardCode!, existingBillToRowNum)
-    } else {
-      billTo = this.addressService.buildBillToAddress(input, 'FACTURACION', existingBp.CardCode!, existingBillToRowNum)
+    if (this.addressService.isBillToAddressPresent(input)) {
+      this.addressService.validateBillToAddress(input)
+      const existingBillToRowNum = this.addressService.getRowNumForUpdate(existingBp.BilltoDefault, existingBp.BPAddresses, 'bo_BillTo')
+      let billTo: any
+      if (existingBillToRowNum) {
+        billTo = this.addressService.buildBillToAddress(input, existingBp.BilltoDefault!, existingBp.CardCode!, existingBillToRowNum)
+      } else {
+        billTo = this.addressService.buildBillToAddress(input, 'FACTURACION', existingBp.CardCode!, existingBillToRowNum)
+      }
+      bpDraft.BPAddresses.push(billTo)
+      logger.info(existingBillToRowNum !== undefined ? 'Dirección de facturación actualizada' : 'Dirección de facturación creada')
     }
 
-    bpDraft.BPAddresses.push(billTo)
-    logger.info(existingBillToRowNum !== undefined ? 'Dirección de facturación actualizada' : 'Dirección de facturación creada')
+    if (this.addressService.isShipToAddressPresent(input)) {
+      this.addressService.validateShipToAddress(input)
+      const existingShipToRowNum = this.addressService.getRowNumForUpdate(existingBp.ShipToDefault, existingBp.BPAddresses, 'bo_ShipTo')
+      let shipTo: any
+      if (existingShipToRowNum) {
+        shipTo = this.addressService.buildShipToAddress(input, existingBp.ShipToDefault!, existingBp.CardCode!, existingShipToRowNum)
+      } else {
+        shipTo = this.addressService.buildShipToAddress(input, 'ENVIO', existingBp.CardCode!, existingShipToRowNum)
+      }
 
-    this.addressService.validateShipToAddress(input)
-
-    const existingShipToRowNum = this.addressService.getRowNumForUpdate(existingBp.ShipToDefault, existingBp.BPAddresses, 'bo_ShipTo')
-    let shipTo: any
-    if (existingShipToRowNum) {
-      shipTo = this.addressService.buildShipToAddress(input, existingBp.ShipToDefault!, existingBp.CardCode!, existingShipToRowNum)
-    } else {
-      shipTo = this.addressService.buildShipToAddress(input, 'ENVIO', existingBp.CardCode!, existingShipToRowNum)
+      bpDraft.BPAddresses!.push(shipTo)
+      logger.info(existingShipToRowNum !== undefined ? 'Dirección de envío actualizada' : 'Dirección de envío creada')
+      // }
     }
-
-    bpDraft.BPAddresses!.push(shipTo)
-    logger.info(existingShipToRowNum !== undefined ? 'Dirección de envío actualizada' : 'Dirección de envío creada')
-    // }
 
     const bp = SapBusinessPartner.validateDraft(bpDraft)
 
@@ -110,7 +102,7 @@ export default class SapAccountService {
     bpDraft.Series = Number(appEnv.BP_CARDCODE_SERIES)
     bpDraft.U_STPG_Origin = input.U_STPG_Origin
     bpDraft.U_STPG_Type = input.STPGType
-    //bpDraft.PeymentMethodCode = input.PaymentMethodCode
+    bpDraft.PeymentMethodCode = input.PaymentMethodCode
     bpDraft.U_SEI_SFID = input.SalesforceId
     bpDraft.CardName = input.CardName
     bpDraft.CardForeignName = input.CardFName

@@ -118,10 +118,11 @@ const configSchema = z.object({
   SBO_SL_PASSWD: z.string(),
   SBO_SL_DB_NAME: z.string(),
 
-  SBO_API_GATEWAY_BASE_URL: z.string().url(),
-  SBO_API_GATEWAY_USER: z.string(),
-  SBO_API_GATEWAY_PASSWD: z.string(),
-  SBO_API_GATEWAY_DB_NAME: z.string(),
+  SBO_API_GATEWAY_BASE_URL: z.string().nullish(),
+  SBO_API_GATEWAY_USER: z.string().nullish(),
+  SBO_API_GATEWAY_PASSWD: z.string().nullish(),
+  SBO_API_GATEWAY_DB_NAME: z.string().nullish(),
+  SBO_API_GATEWAY_DB_INSTANCE: z.string().nullish(),
 
   JWT_SECRET: z.string(),
   JWT_EXPIRES_IN: z.string(),

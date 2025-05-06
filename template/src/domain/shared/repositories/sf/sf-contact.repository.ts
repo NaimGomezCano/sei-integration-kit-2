@@ -40,9 +40,9 @@ export class SalesforceContactRepository {
     }
   }
 
-  async findByCardCodeOrNull(cardCode: string): Promise<typeof SfContact.Type | null> {
-    logger.info(`Verificando existencia de Contact con Id: ${cardCode}`)
-    const res: any = await this.sf.get<void>(`/services/data/v60.0/query?q=SELECT+Id,Name+FROM+Contact+WHERE+SAP_Account_Id__c='${cardCode}'`, {
+  async findByCardCodeOrNull(id: number): Promise<typeof SfContact.Type | null> {
+    logger.info(`Verificando existencia de Contact con Id: ${id}`)
+    const res: any = await this.sf.get<void>(`/services/data/v60.0/query?q=SELECT+Id,Name+FROM+Contact+WHERE+SAP_Contact_Id__c=${id}`, {
       headers: { 'If-None-Match': '0' },
     })
 

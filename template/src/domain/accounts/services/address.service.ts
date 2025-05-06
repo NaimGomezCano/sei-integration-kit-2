@@ -30,6 +30,8 @@ export class AddressService {
   }
 
   public buildBillToAddress(input: typeof SfUpdateClient.Draft, addressName: string, cardCode: string, rowNum?: number | undefined): typeof SapBPAddresses.Type {
+ 
+    this.validateBillToAddress(input)
     const updated = {
       Street: input.BillToStreet,
       ZipCode: input.BillToZipCode,
@@ -55,6 +57,8 @@ export class AddressService {
   }
 
   public buildShipToAddress(input: typeof SfUpdateClient.Draft | typeof SfCreateClient.Type, addressName: string, cardCode: string, rowNum?: number | undefined): typeof SapBPAddresses.Type {
+    this.validateShipToAddress(input)
+
     const updated = {
       Street: input.ShipToStreet,
       ZipCode: input.ShipToZipCode,
@@ -82,6 +86,17 @@ export class AddressService {
   public isAddressProvided(address: Record<string, any>): boolean {
     return Object.values(address).some((val) => val != null)
   }
+
+  public isBillToAddressPresent(input: any): boolean {
+    const { BillToStreet, BillToZipCode, BillToCity, BillToCountry, BillToState } = input;
+    return !!(BillToStreet || BillToZipCode || BillToCity || BillToCountry || BillToState);
+  }
+  
+  public isShipToAddressPresent(input: any): boolean {
+    const { ShipToStreet, ShipToZipCode, ShipToCity, ShipToCountry, ShipToState } = input;
+    return !!(ShipToStreet || ShipToZipCode || ShipToCity || ShipToCountry || ShipToState);
+  }
+  
 
   public validateBillToAddress(input: any) {
     const { BillToStreet, BillToZipCode, BillToCity, BillToCountry, BillToState } = input
