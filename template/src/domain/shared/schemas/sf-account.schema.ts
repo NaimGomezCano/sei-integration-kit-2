@@ -1,9 +1,9 @@
-import { SF_STD_AccountSchema } from '@/shared/salesforce/schemas/std.account.schema'
+import { SF_STD_Account } from '@/shared/salesforce/schemas/std.account.schema'
 import { createZodModel } from '@/shared/utils/create-model'
 import { z } from 'zod'
 
 export const SfAccount = createZodModel(
-  SF_STD_AccountSchema.extend({
+  SF_STD_Account.extend({
     SAP_Account_Id__c: z.string().nullish(),
     CIF__c: z.string().nullish(),
     PurchaseFrequency__c: z.string().nullish(),

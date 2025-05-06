@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const SF_STD_AccountSchema = z.object({
+export const SF_STD_Account = z.object({
   attributes: z
     .object({
       type: z.literal('Account'),
@@ -61,4 +61,4 @@ export const SF_STD_AccountSchema = z.object({
   AccountSource: z.string().nullish(),
   SicDesc: z.string().nullish(),
 })
-export type SF_STD_AccountSchema = z.infer<typeof SF_STD_AccountSchema>
+export type SF_STD_Account = z.infer<typeof SF_STD_Account>

@@ -5,8 +5,10 @@ import { OperationResult } from '@/core/operation-result/types'
 import { CountryMapper } from '@/domain/shared/country.mapper'
 import { SapBusinessPartnerRepository } from '@/domain/shared/repositories/sap/sap-business-partner.repository'
 import { SalesforceAccountRepository } from '@/domain/shared/repositories/sf/sf-account.repository'
+import { SalesforceContactRepository } from '@/domain/shared/repositories/sf/sf-contact.repository'
 import { SapBusinessPartner } from '@/domain/shared/schemas/sap-business-partner.schema'
 import { SfAccount } from '@/domain/shared/schemas/sf-account.schema'
+import { SfContact } from '@/domain/shared/schemas/sf-contact.schema'
 import { areAllFieldsFilled } from '@/shared/utils/areAllFieldsFilled'
 import { delay } from '@/shared/utils/delay'
 import { requireEntity } from '@/shared/utils/require-entity.utils'
@@ -18,6 +20,7 @@ export default class SalesforceAccountService {
   private readonly bpRepo = new SapBusinessPartnerRepository()
   private readonly addressService = new AddressService()
   private readonly sfAccountRepo = new SalesforceAccountRepository()
+  private readonly sfContactRepo = new SalesforceContactRepository()
   private readonly statesMapper = new StatesMapper()
   private readonly countryMapper = new CountryMapper()
   private readonly industryService = new IndustryMapper()
@@ -48,7 +51,7 @@ export default class SalesforceAccountService {
 
     try {
       draft.AccountSource = bp.U_STPG_Origin
-      // draft.ClientType__c = bp.U_STPG_Type
+      draft.ClientType__c = bp.U_STPG_Type
       draft.Description = bp.FreeText
       draft.Industry = this.industryService.getNameByCode(bp.Industry)
       draft.Name = bp.CardName
@@ -130,6 +133,58 @@ export default class SalesforceAccountService {
 
           result = OperationResultBuilder.success(created).build()
           this.stats.creadas++
+        }
+      }
+    } catch (error) {
+      this.stats.errores++
+
+      result = handleErrorToOperationResult(error)
+      logger.error('Error al sincronizar cuenta', result)
+    }
+
+    return result
+  }
+
+  async pushSingleContact(cardCode: string, bp: typeof SapBusinessPartner.Type = {}): Promise<OperationResult> {
+    if (!bp.CardCode) {
+      // Si no se envia el objeto bp lo obtenemos nosotros
+      bp = await requireEntity(this.bpRepo.findByIdOrNull(cardCode))
+    }
+
+    const contacts = bp.ContactEmployees
+
+    let result: OperationResult | any
+    const draft: typeof SfContact.Draft = {}
+
+    try {
+      if (contacts?.length) {
+        for (const contact of contacts) {
+          draft.FirstName = contact.FirstName
+          draft.LastName = contact.LastName
+          draft.Email = contact.E_Mail
+          draft.Phone = contact.Phone1
+          draft.MobilePhone = contact.MobilePhone
+          draft.Title = contact.Title
+          draft.Department = contact.Position
+          draft.AccountId = bp.U_SEI_SFID
+
+          const newContact = SfContact.validateDraft(draft)
+          const exists = await this.sfContactRepo.findByCardCodeOrNull(bp.CardCode!)
+
+          if (exists) {
+            await this.sfContactRepo.update(exists.Id!, newContact)
+            contact.U_SEI_SFID = exists.Id
+            await this.bpRepo.update(bp.CardCode!, bp)
+            result = OperationResultBuilder.success(exists).build()
+            this.stats.actualizadas++
+          } else {
+            const created = await this.sfContactRepo.create(newContact)
+            contact.U_SEI_SFID = created.Id
+            await this.bpRepo.update(bp.CardCode!, bp)
+            const confirmation = await requireEntity(this.bpRepo.findByIdOrNull(bp.CardCode!))
+            result = OperationResultBuilder.success(created).build()
+            this.stats.creadas++
+          }
         }
       }
     } catch (error) {
