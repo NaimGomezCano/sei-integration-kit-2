@@ -18,7 +18,7 @@ export class ProductJobSchedules {
       schedule({
         job: itemJobs.sfCreateorUpdatePricebooksEntryBatch,
         cron: '0 6 * * *',
-        runOnInit: true,
+        runOnInit: false,
       })
   }
 }

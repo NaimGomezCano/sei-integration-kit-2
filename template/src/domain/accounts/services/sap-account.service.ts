@@ -62,17 +62,7 @@ export default class SapAccountService {
 
     bpDraft.BPAddresses.push(billTo)
     logger.info(existingBillToRowNum !== undefined ? 'Dirección de facturación actualizada' : 'Dirección de facturación creada')
-    // }
 
-    // if (
-    //   this.addressService.isAddressProvided({
-    //     Street: input.ShipToStreet,
-    //     ZipCode: input.ShipToZipCode,
-    //     City: input.ShipToCity,
-    //     Country: input.ShipToCountry,
-    //     State: input.ShipToState,
-    //   })
-    // ) {
     this.addressService.validateShipToAddress(input)
 
     const existingShipToRowNum = this.addressService.getRowNumForUpdate(existingBp.ShipToDefault, existingBp.BPAddresses, 'bo_ShipTo')
