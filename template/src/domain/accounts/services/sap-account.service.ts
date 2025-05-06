@@ -39,6 +39,11 @@ export default class SapAccountService {
     bpDraft.Website = input.Website
     bpDraft.FreeText = input.FreeText
 
+    if (input.Active === false) {
+      bpDraft.Frozen = 'tYES'
+      bpDraft.FrozenRemarks = 'Desactivado por integración'
+    }
+
     bpDraft.BPAddresses = []
 
     // if (

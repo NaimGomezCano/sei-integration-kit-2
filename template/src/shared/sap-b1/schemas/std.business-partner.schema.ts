@@ -44,6 +44,8 @@ export const SBO_STD_BusinessPartner = z.object({
   FreeText: z.string().nullish(),
   Currency: z.string().nullish(),
   Website: z.string().nullish(),
+  Frozen: z.string().nullish(),
+  FrozenRemarks: z.string().nullish(),
   BilltoDefault: z.string().nullish(),
   ShipToDefault: z.string().nullish(),
   BillToState: z.string().nullish(),
