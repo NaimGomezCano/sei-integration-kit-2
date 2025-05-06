@@ -18,8 +18,6 @@ export default class SalesforceProductService {
     creadas: 0,
     actualizadas: 0,
     errores: 0,
-    conSalesforceIdPeroNoExiste: 0,
-    salesforceActualizadoEnSAP: 0,
     tiempoInicio: Date.now(),
   }
 
@@ -28,17 +26,17 @@ export default class SalesforceProductService {
       item = await requireEntity(this.sapItemRepo.findByIdOrNull(itemCode))
     }
 
-    let result: OperationResult | any
-    const draft: typeof SfProduct2.Draft = {}
+    logger.info('Sincronización producto', { itemCode })
 
     try {
-      draft.Name = item.ItemName
-      draft.ProductCode = item.ItemCode
-      draft.Description = item.ItemDescription
-      draft.IsActive = item.Valid === 'tYES'
+      const draft: typeof SfProduct2.Draft = {
+        Name: item.ItemName,
+        ProductCode: item.ItemCode,
+        Description: item.ItemDescription,
+        IsActive: item.Valid === 'tYES',
+      }
 
       const validated = SfProduct2.validateDraft(draft)
-
       const exists = await this.sfProductRepo.findByItemCodeOrNull(item.ItemCode!)
       item.U_SEI_SFINT_ORI = 'SAP'
 
@@ -46,64 +44,63 @@ export default class SalesforceProductService {
         await this.sfProductRepo.update(exists.Id!, validated)
         item.U_SEI_SFID = exists.Id
         await this.sapItemRepo.update(item.ItemCode!, item)
-        result = OperationResultBuilder.success(exists).build()
-        this.stats.actualizadas++
-      } else {
-        const created = await this.sfProductRepo.create(validated)
-        item.U_SEI_SFID = created.Id
-        await this.sapItemRepo.update(item.ItemCode!, item)
-        const confirmation = await requireEntity(this.sapItemRepo.findByIdOrNull(item.ItemCode!))
 
-        result = OperationResultBuilder.success(created).build()
-        this.stats.creadas++
+        this.stats.actualizadas++
+        logger.info('Producto actualizado en SF', { itemCode, sfId: exists.Id })
+        return OperationResultBuilder.success(exists).build()
       }
 
-      draft.IsActive = true
+      const created = await this.sfProductRepo.create(validated)
+      item.U_SEI_SFID = created.Id
+      await this.sapItemRepo.update(item.ItemCode!, item)
+
+      this.stats.creadas++
+      logger.info('Producto creado en SF', { itemCode, sfId: created.Id })
+      return OperationResultBuilder.success(created).build()
     } catch (error) {
       this.stats.errores++
 
-      result = handleErrorToOperationResult(error)
-      logger.error('Error al sincronizar item', result)
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error al sincronizar producto', { itemCode, error: opErr })
+      return opErr
     }
-
-    return result
   }
 
-  async createOrUpdateProductByItemCode(cardCode: string): Promise<OperationResult> {
-    const result = await this.pushSingleProduct(cardCode)
-    return result
+  async createOrUpdateProductByItemCode(itemCode: string): Promise<OperationResult> {
+    return this.pushSingleProduct(itemCode)
   }
 
   async createOrUpdateProductsBatch(): Promise<OperationResult> {
-    let result: any
-
     try {
       const processResult: OperationResult[] = []
-
-      logger.info('Inicio proceso batch de items → Salesforce')
+      logger.info('Inicio batch items → Salesforce')
 
       await this.sapItemRepo.processAllItems(async (items: (typeof SapItem.Type)[]) => {
         for (const item of items) {
           this.stats.total++
 
-          const result = await this.pushSingleProduct(item.ItemCode!, item)
-          processResult.push(result)
+          const res = await this.pushSingleProduct(item.ItemCode!, item)
+          processResult.push(res)
 
-          logger.info(`Items procesados hasta ahora: ${processResult.length}`)
+          logger.info('Item procesado', {
+            itemCode: item.ItemCode,
+            progreso: `${this.stats.total} items`,
+          })
 
-          delay(100)
+          await delay(100)
         }
       })
 
-      result = OperationResultBuilder.success<OperationResult[]>(processResult).build()
+      logger.info('Fin batch', {
+        duraciónMs: Date.now() - this.stats.tiempoInicio,
+        stats: this.stats,
+      })
 
-      logger.metrics('Estadísticas de sincronización', this.stats)
-
-      return result
+      return OperationResultBuilder.success(processResult).build()
     } catch (error) {
-      result = handleErrorToOperationResult(error)
-    } finally {
-      return result
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error en batch productos', { error: opErr })
+      return opErr
     }
   }
 }

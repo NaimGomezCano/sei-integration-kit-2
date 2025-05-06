@@ -15,6 +15,7 @@ import { IndustryMapper } from '../../shared/industry.mapper'
 import { StatesMapper } from '../../shared/states.mapper'
 
 export default class SalesforceContactService {
+  // …repos & helpers…
   private readonly bpRepo = new SapBusinessPartnerRepository()
   private readonly addressService = new AddressService()
   private readonly sfAccountRepo = new SalesforceAccountRepository()
@@ -35,92 +36,102 @@ export default class SalesforceContactService {
 
   async pushSingleContact(cardCode: string, bp: typeof SapBusinessPartner.Type = {}): Promise<OperationResult> {
     if (!bp.CardCode) {
-      // Si no se envia el objeto bp lo obtenemos nosotros
       bp = await requireEntity(this.bpRepo.findByIdOrNull(cardCode))
     }
 
     const contacts = bp.ContactEmployees
-
-    let result: OperationResult | any
+    const resultBuilder = OperationResultBuilder.success<any>()
     const draft: typeof SfContact.Draft = {}
 
     try {
-      if (contacts?.length) {
-        for (const contact of contacts) {
-          draft.FirstName = contact.FirstName ?? 'Nombre no establecido'
-          draft.LastName = contact.LastName ?? 'Apellido no establecido'
-          draft.Email = contact.E_Mail ?? 'test@example.com'
-          draft.Phone = contact.Phone1 ?? '000000000'
-          draft.MobilePhone = contact.MobilePhone ?? '000000000'
-          draft.Title = contact.Title
-          draft.Department = contact.Position
-          draft.AccountId = bp.U_SEI_SFID
+      if (!contacts?.length) {
+        logger.warn('BP sin contactos', { cardCode })
+        return OperationResultBuilder.error('ValidationError', 'NO_CONTACTS', 'La BP no contiene contactos').build()
+      }
 
-          const newContact = SfContact.validateDraft(draft)
-          const exists = await this.sfContactRepo.findByCardCodeOrNull(contact.InternalCode!)
+      for (const contact of contacts) {
+        draft.FirstName = contact.FirstName ?? 'Nombre no establecido'
+        draft.LastName = contact.LastName ?? 'Apellido no establecido'
+        draft.Email = contact.E_Mail ?? 'test@example.com'
+        draft.Phone = contact.Phone1 ?? '000000000'
+        draft.MobilePhone = contact.MobilePhone ?? '000000000'
+        draft.Title = contact.Title
+        draft.Department = contact.Position
+        draft.AccountId = bp.U_SEI_SFID
 
-          if (exists) {
-            await this.sfContactRepo.update(exists.Id!, newContact)
-            contact.U_SEI_SFID = exists.Id
-            await this.bpRepo.update(bp.CardCode!, bp)
-            result = OperationResultBuilder.success(exists).build()
-            this.stats.actualizadas++
-          } else {
-            const created = await this.sfContactRepo.create(newContact)
-            contact.U_SEI_SFID = created.Id
-            await this.bpRepo.update(bp.CardCode!, bp)
-            const confirmation = await requireEntity(this.bpRepo.findByIdOrNull(bp.CardCode!))
-            result = OperationResultBuilder.success(created).build()
-            this.stats.creadas++
-          }
+        const newContact = SfContact.validateDraft(draft)
+        const exists = await this.sfContactRepo.findByCardCodeOrNull(contact.InternalCode!)
+
+        if (exists) {
+          await this.sfContactRepo.update(exists.Id!, newContact)
+          contact.U_SEI_SFID = exists.Id
+          await this.bpRepo.update(bp.CardCode!, bp)
+          logger.info('Contacto actualizado en SF', {
+            cardCode,
+            sfId: exists.Id,
+          })
+          resultBuilder.addResult(OperationResultBuilder.success(exists).build())
+          this.stats.actualizadas++
+
+        } else {
+          const created = await this.sfContactRepo.create(newContact)
+          contact.U_SEI_SFID = created.Id
+          await this.bpRepo.update(bp.CardCode!, bp)
+          logger.info('Contacto creado en SF', {
+            cardCode,
+            sfId: created.Id,
+          })
+          resultBuilder.addResult(OperationResultBuilder.success(created).build())
+          this.stats.creadas++
         }
       }
+
+      return resultBuilder.build()
     } catch (error) {
       this.stats.errores++
-
-      result = handleErrorToOperationResult(error)
-      logger.error('Error al sincronizar cuenta', result)
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error al sincronizar contacto', {
+        cardCode,
+        error: opErr,
+      })
+      return opErr
     }
-
-    return result
   }
 
   async createOrUpdateContactByCardCode(cardCode: string): Promise<OperationResult> {
-    const result = await this.pushSingleContact(cardCode)
-    return result
+    return this.pushSingleContact(cardCode)
   }
 
   async createOrUpdateContactsBatch(): Promise<OperationResult> {
-    let result: any
-
     try {
       const processResult: OperationResult[] = []
-
-      logger.info('Inicio proceso batch de cuentas SAP → Salesforce')
+      logger.info('Inicio proceso batch SAP → Salesforce')
 
       await this.bpRepo.processAllBusinessPartners(async (partners: (typeof SapBusinessPartner.Type)[]) => {
         for (const bp of partners) {
           this.stats.total++
+
+          const res = await this.pushSingleContact(bp.CardCode!, bp)
+          processResult.push(res)
+
+          logger.info('BP procesada', {
+            cardCode: bp.CardCode,
+            progreso: `${this.stats.total} BPs`,
+          })
           await delay(500)
-
-          const result = await this.pushSingleContact(bp.CardCode!, bp)
-          processResult.push(result)
-
-          logger.info(`Cuentas procesadas hasta ahora: ${processResult.length}`)
-
-          delay(100)
         }
       })
 
-      result = OperationResultBuilder.success<OperationResult[]>(processResult).build()
+      logger.info('Fin batch', {
+        duraciónMs: Date.now() - this.stats.tiempoInicio,
+        stats: this.stats,
+      })
 
-      logger.metrics('Estadísticas de sincronización', this.stats)
-
-      return result
+      return OperationResultBuilder.success(processResult).build()
     } catch (error) {
-      result = handleErrorToOperationResult(error)
-    } finally {
-      return result
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error en batch SAP → Salesforce', { error: opErr })
+      return opErr
     }
   }
 }

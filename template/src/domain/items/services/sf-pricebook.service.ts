@@ -11,15 +11,13 @@ import { requireEntity } from '@/shared/utils/require-entity.utils'
 
 export default class SalesforcePricebookService {
   private readonly sapPriceListRepo = new SapPriceListRepository()
-  private readonly sfPricebookRepository = new SalesforcePricebookRepository()
+  private readonly sfPricebookRepo = new SalesforcePricebookRepository()
 
   stats = {
     total: 0,
     creadas: 0,
     actualizadas: 0,
     errores: 0,
-    conSalesforceIdPeroNoExiste: 0,
-    salesforceActualizadoEnSAP: 0,
     tiempoInicio: Date.now(),
   }
 
@@ -28,82 +26,79 @@ export default class SalesforcePricebookService {
       priceList = await requireEntity(this.sapPriceListRepo.findByIdOrNull(listNo))
     }
 
-    let result: OperationResult | any
-    const draft: typeof SfPricebook.Draft = {}
+    logger.info('Sincronización Pricebook', { listNo })
 
     try {
-      draft.Name = priceList.PriceListName
-      draft.IsActive = priceList.Active === 'tYES'
-      draft.SAP_Pricebook2_Id__c = priceList.PriceListNo!
-      //draft.IsStandard = true // TODO: Por el momento podria no hacer falta 
-
-      const validated = SfPricebook.validateDraft(draft)
-
-      const exists = await this.sfPricebookRepository.findByItemCodeOrNull(priceList.PriceListNo!)
-      priceList.U_SEI_SFINT_ORI = 'SAP'
-
-      if (exists) {
-        await this.sfPricebookRepository.update(exists.Id!, validated)
-        priceList.U_SEI_SFID = exists.Id
-        await this.sapPriceListRepo.update(priceList.PriceListNo!, priceList)
-        result = OperationResultBuilder.success(exists).build()
-        this.stats.actualizadas++
-      } else {
-        const created = await this.sfPricebookRepository.create(validated)
-        priceList.U_SEI_SFID = created.Id
-        await this.sapPriceListRepo.update(priceList.PriceListNo!, priceList)
-        const confirmation = await requireEntity(this.sapPriceListRepo.findByIdOrNull(priceList.PriceListNo!))
-
-        result = OperationResultBuilder.success(created).build()
-        this.stats.creadas++
+      const draft: typeof SfPricebook.Draft = {
+        Name: priceList.PriceListName,
+        IsActive: priceList.Active === 'tYES',
+        SAP_Pricebook2_Id__c: priceList.PriceListNo!,
       }
 
-      draft.IsActive = true
+      const validated = SfPricebook.validateDraft(draft)
+      const exists = await this.sfPricebookRepo.findByItemCodeOrNull(priceList.PriceListNo!)
+
+      if (exists) {
+        await this.sfPricebookRepo.update(exists.Id!, validated)
+        priceList.U_SEI_SFID = exists.Id
+        await this.sapPriceListRepo.update(priceList.PriceListNo!, priceList)
+
+        this.stats.actualizadas++
+        logger.info('Pricebook actualizado', { listNo, sfId: exists.Id })
+        return OperationResultBuilder.success(exists).build()
+      }
+
+      const created = await this.sfPricebookRepo.create(validated)
+      priceList.U_SEI_SFID = created.Id
+      await this.sapPriceListRepo.update(priceList.PriceListNo!, priceList)
+
+      this.stats.creadas++
+      logger.info('Pricebook creado', { listNo, sfId: created.Id })
+      return OperationResultBuilder.success(created).build()
     } catch (error) {
       this.stats.errores++
 
-      result = handleErrorToOperationResult(error)
-      logger.error('Error al sincronizar item', result)
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error al sincronizar Pricebook', { listNo, error: opErr })
+      return opErr
     }
-
-    return result
   }
 
   async createOrUpdatePricebookByNumber(listNo: string): Promise<OperationResult> {
-    const result = await this.pushSinglePricebook(Number(listNo))
-    return result
+    return this.pushSinglePricebook(Number(listNo))
   }
 
   async createOrUpdatePricebooksBatch(): Promise<OperationResult> {
-    let result: any
-
     try {
       const processResult: OperationResult[] = []
-
-      logger.info('Inicio proceso batch de Price Lists → Salesforce (Pricebooks)')
+      logger.info('Inicio batch Price Lists → Salesforce (Pricebooks)')
 
       await this.sapPriceListRepo.processAllPriceLists(async (priceLists: (typeof SapPriceList.Type)[]) => {
         for (const priceList of priceLists) {
           this.stats.total++
 
-          const result = await this.pushSinglePricebook(priceList.PriceListNo!, priceList)
-          processResult.push(result)
+          const res = await this.pushSinglePricebook(priceList.PriceListNo!, priceList)
+          processResult.push(res)
 
-          logger.info(`priceList procesados hasta ahora: ${processResult.length}`)
+          logger.info('Pricebook procesado', {
+            listNo: priceList.PriceListNo,
+            progreso: `${this.stats.total} pricebooks`,
+          })
 
-          delay(100)
+          await delay(100)
         }
       })
 
-      result = OperationResultBuilder.success<OperationResult[]>(processResult).build()
+      logger.info('Fin batch', {
+        duraciónMs: Date.now() - this.stats.tiempoInicio,
+        stats: this.stats,
+      })
 
-      logger.metrics('Estadísticas de sincronización', this.stats)
-
-      return result
+      return OperationResultBuilder.success(processResult).build()
     } catch (error) {
-      result = handleErrorToOperationResult(error)
-    } finally {
-      return result
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error en batch Pricebooks', { error: opErr })
+      return opErr
     }
   }
 }

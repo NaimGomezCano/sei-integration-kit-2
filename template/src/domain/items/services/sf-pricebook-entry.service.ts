@@ -22,8 +22,6 @@ export default class SalesforcePricebookEntryService {
     creadas: 0,
     actualizadas: 0,
     errores: 0,
-    conSalesforceIdPeroNoExiste: 0,
-    salesforceActualizadoEnSAP: 0,
     tiempoInicio: Date.now(),
   }
 
@@ -32,91 +30,104 @@ export default class SalesforcePricebookEntryService {
       item = await requireEntity(this.sapItemRepo.findByIdOrNull(itemCode))
     }
 
-    let result: OperationResult | any
-    const draft: typeof SfPricebookEntry.Draft = {}
-
-    //const standardPriceEntry = await this.sfPricebookEntryRepository.findByIdOrNull(item.ItemCode!)
-
-    if (!item.U_SEI_SFID) {
-      const res = await this.sfProductService.createOrUpdateProductByItemCode(itemCode)
-      if (res.success === false) {
-        return res
-      }
-      item = await requireEntity(this.sapItemRepo.findByIdOrNull(itemCode))
-    }
+    logger.info('Sincronización PricebookEntry', { itemCode })
 
     try {
-      if (item.ItemPrices?.length) {
-        for (const itemPriceList of item.ItemPrices) {
-          await delay(500)
-          logger.info('Delay')
+      // Aseguramos que el producto existe en SF
+      if (!item.U_SEI_SFID) {
+        const prodRes = await this.sfProductService.createOrUpdateProductByItemCode(itemCode)
+        if (!prodRes.success) return prodRes
+        item = await requireEntity(this.sapItemRepo.findByIdOrNull(itemCode))
+      }
 
-          if (itemPriceList.Price === 0) {
-            logger.warn('Saltamos creacion de PriceBookEntry porque el el precio es 0', itemPriceList)
-            continue
-          }
+      const draft: typeof SfPricebookEntry.Draft = {}
 
-          draft.Product2Id = item.U_SEI_SFID
-          const priceList = await requireEntity(this.sapPriceListRepo.findByIdOrNull(itemPriceList.PriceList))
-          draft.Pricebook2Id = priceList.U_SEI_SFID!
+      if (!item.ItemPrices?.length) {
+        logger.warn('Item sin listas de precios, se omite', { itemCode })
+        return OperationResultBuilder.error('ValidationError', 'NO_PRICELISTS', 'El item no contiene precios').build()
+      }
 
-          draft.UnitPrice = itemPriceList.Price
-          draft.IsActive = true // TODO: De donde sale
+      for (const itemPriceList of item.ItemPrices) {
+        await delay(500)
 
-          const validated = SfPricebookEntry.validateDraft(draft)
+        if (itemPriceList.Price === 0) {
+          logger.warn('Se omite PricebookEntry con precio 0', {
+            itemCode,
+            priceList: itemPriceList.PriceList,
+          })
+          continue
+        }
 
-          const exists = await this.sfPricebookEntryRepository.findByCompositeOrNull(item.U_SEI_SFID!, priceList.U_SEI_SFID!)
-          item.U_SEI_SFINT_ORI = 'SAP'
+        draft.Product2Id = item.U_SEI_SFID
+        const priceList = await requireEntity(this.sapPriceListRepo.findByIdOrNull(itemPriceList.PriceList))
+        draft.Pricebook2Id = priceList.U_SEI_SFID!
+        draft.UnitPrice = itemPriceList.Price
+        draft.IsActive = true
 
-          if (exists) {
-            await this.sfPricebookEntryRepository.update(exists.Id!, validated)
-            result = OperationResultBuilder.success(exists).build()
-            this.stats.actualizadas++
-          } else {
-            const created = await this.sfPricebookEntryRepository.create(validated)
-            result = OperationResultBuilder.success(created).build()
-            this.stats.creadas++
-          }
+        const validated = SfPricebookEntry.validateDraft(draft)
+        const exists = await this.sfPricebookEntryRepository.findByCompositeOrNull(item.U_SEI_SFID!, priceList.U_SEI_SFID!)
+
+        if (exists) {
+          await this.sfPricebookEntryRepository.update(exists.Id!, validated)
+          this.stats.actualizadas++
+          logger.info('PricebookEntry actualizado', {
+            itemCode,
+            priceList: priceList.PriceListNo,
+            sfId: exists.Id,
+          })
+        } else {
+          const created = await this.sfPricebookEntryRepository.create(validated)
+          this.stats.creadas++
+          logger.info('PricebookEntry creado', {
+            itemCode,
+            priceList: priceList.PriceListNo,
+            sfId: created.Id,
+          })
         }
       }
-    } catch (error) {
-      result = handleErrorToOperationResult(error)
-      logger.error('Error al sincronizar item', result)
-    }
 
-    return result
+      return OperationResultBuilder.success().build()
+    } catch (error) {
+      this.stats.errores++
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error al sincronizar PricebookEntry', {
+        itemCode,
+        error: opErr,
+      })
+      return opErr
+    }
   }
 
   async createOrUpdatePricebooksEntryBatch(): Promise<OperationResult> {
-    let result: any
-
     try {
       const processResult: OperationResult[] = []
-
-      logger.info('Inicio proceso batch de Price Lists → Salesforce (PricebooksEntry)')
+      logger.info('Inicio batch Price Lists → Salesforce (PricebookEntry)')
 
       await this.sapItemRepo.processAllItems(async (items: (typeof SapItem.Type)[]) => {
         for (const item of items) {
           this.stats.total++
+          const res = await this.pushSinglePricebookEntry(item.ItemCode!, item)
+          processResult.push(res)
 
-          const result = await this.pushSinglePricebookEntry(item.ItemCode!, item)
-          processResult.push(result)
+          logger.info('Item procesado', {
+            itemCode: item.ItemCode,
+            progreso: `${this.stats.total} items`,
+          })
 
-          logger.info(`priceListEntry procesados hasta ahora: ${processResult.length}`)
-
-          delay(100)
+          await delay(100)
         }
       })
 
-      result = OperationResultBuilder.success<OperationResult[]>(processResult).build()
+      logger.info('Fin batch', {
+        duraciónMs: Date.now() - this.stats.tiempoInicio,
+        stats: this.stats,
+      })
 
-      logger.metrics('Estadísticas de sincronización', this.stats)
-
-      return result
+      return OperationResultBuilder.success(processResult).build()
     } catch (error) {
-      result = handleErrorToOperationResult(error)
-    } finally {
-      return result
+      const opErr = handleErrorToOperationResult(error)
+      logger.error('Error en batch PricebookEntry', { error: opErr })
+      return opErr
     }
   }
 }
