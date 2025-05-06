@@ -9,11 +9,13 @@ import { SapItem } from '@/domain/shared/schemas/sap-item.schema'
 import { SfPricebookEntry } from '@/domain/shared/schemas/sf-pricebook-entry.schema'
 import { delay } from '@/shared/utils/delay'
 import { requireEntity } from '@/shared/utils/require-entity.utils'
+import SalesforceProductService from './sf-products.service'
 
 export default class SalesforcePricebookEntryService {
   private readonly sapItemRepo = new SapItemRepository()
   private readonly sfPricebookEntryRepository = new SalesforcePricebookEntryRepository()
   private readonly sapPriceListRepo = new SapPriceListRepository()
+  private readonly sfProductService = new SalesforceProductService()
 
   stats = {
     total: 0,
@@ -33,44 +35,49 @@ export default class SalesforcePricebookEntryService {
     let result: OperationResult | any
     const draft: typeof SfPricebookEntry.Draft = {}
 
+    //const standardPriceEntry = await this.sfPricebookEntryRepository.findByIdOrNull(item.ItemCode!)
+
+    if (!item.U_SEI_SFID) {
+      const res = await this.sfProductService.createOrUpdateProductByItemCode(itemCode)
+      if (res.success === false) {
+        return res
+      }
+      item = await requireEntity(this.sapItemRepo.findByIdOrNull(itemCode))
+    }
+
     try {
       if (item.ItemPrices?.length) {
-        for (const priceList of item.ItemPrices) {
-          draft.Product2Id = item.U_SEI_SFID
+        for (const itemPriceList of item.ItemPrices) {
+          if (itemPriceList.Price === 0) {
+            logger.warn('Saltamos creacion de PriceBookEntry porque el el precio es 0', itemPriceList)
+            continue
+          }
 
-          const priceBook = await requireEntity(this.sapPriceListRepo.findByIdOrNull(priceList.PriceList))
-          draft.Pricebook2Id = priceBook.U_SEI_SFID!
-          draft.UnitPrice = priceList.Price
+          draft.Product2Id = item.U_SEI_SFID
+          const priceList = await requireEntity(this.sapPriceListRepo.findByIdOrNull(itemPriceList.PriceList))
+          draft.Pricebook2Id = priceList.U_SEI_SFID!
+
+          draft.UnitPrice = itemPriceList.Price
           draft.IsActive = true // TODO: De donde sale
           draft.UseStandardPrice = true // TODO: De donde sale
 
           const validated = SfPricebookEntry.validateDraft(draft)
 
-          const exists = await this.sfPricebookEntryRepository.findByIdOrNull(item.ItemCode!)
+          const exists = await this.sfPricebookEntryRepository.findByCompositeOrNull(item.U_SEI_SFID!, priceList.U_SEI_SFID!)
           item.U_SEI_SFINT_ORI = 'SAP'
 
           if (exists) {
             await this.sfPricebookEntryRepository.update(exists.Id!, validated)
-            item.U_SEI_SFID = exists.Id
-            await this.sapItemRepo.update(item.ItemCode!, item)
             result = OperationResultBuilder.success(exists).build()
             this.stats.actualizadas++
           } else {
             const created = await this.sfPricebookEntryRepository.create(validated)
-            item.U_SEI_SFID = created.Id
-            await this.sapItemRepo.update(item.ItemCode!, item)
-            const confirmation = await requireEntity(this.sapItemRepo.findByIdOrNull(item.ItemCode!))
-
             result = OperationResultBuilder.success(created).build()
             this.stats.creadas++
           }
-
-          draft.IsActive = true
         }
       }
     } catch (error) {
-      this.stats.errores++
-
       result = handleErrorToOperationResult(error)
       logger.error('Error al sincronizar item', result)
     }

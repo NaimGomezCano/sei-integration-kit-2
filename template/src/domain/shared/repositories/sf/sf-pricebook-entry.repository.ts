@@ -12,6 +12,21 @@ export class SalesforcePricebookEntryRepository {
     return `/services/data/${this.apiVersion}/sobjects/PricebookEntry`
   }
 
+  async query(query: string): Promise<any | null> {
+    logger.info(`Obteniendo SfPricebookEntry por query: ${query}`)
+
+    try {
+      const { data } = await this.sf.get<any>(`/services/data/v60.0/query/?q=/${query}`)
+      return data
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        logger.info('SfPricebookEntry no encontrado', { query })
+        return null
+      }
+      throw err
+    }
+  }
+
   async findByIdOrNull(id: string): Promise<typeof SfPricebookEntry.Type | null> {
     logger.info(`Obteniendo SfPricebookEntry por Id: ${id}`)
 
@@ -40,9 +55,8 @@ export class SalesforcePricebookEntryRepository {
     }
   }
 
-  async findByItemCodeOrNull(itemCode: number): Promise<typeof SfPricebookEntry.Type | null> {
-    logger.info(`Verificando existencia de SfPricebookEntry con Id: ${itemCode}`)
-    const res: any = await this.sf.get<void>(`/services/data/v60.0/query?q=SELECT+Id,Name+FROM+PricebookEntry+WHERE+SAP_Composite_Id__c=${itemCode}`, {
+  async findByCompositeOrNull(product2Id: string, pricebook2Id: string): Promise<typeof SfPricebookEntry.Type | null> {
+    const res: any = await this.sf.get<void>(`/services/data/v60.0/query?q=SELECT+Id,Name+FROM+PricebookEntry+WHERE+Product2Id='${product2Id}'+and+Pricebook2Id='${pricebook2Id}'`, {
       headers: { 'If-None-Match': '0' },
     })
 
@@ -58,7 +72,7 @@ export class SalesforcePricebookEntryRepository {
     return null
   }
 
-  async create(draft: typeof SfPricebookEntry.Draft): Promise<typeof SfPricebookEntry .Type> {
+  async create(draft: typeof SfPricebookEntry.Draft): Promise<typeof SfPricebookEntry.Type> {
     const validated = SfPricebookEntry.validateDraft(draft)
     logger.info('Creando SfPricebookEntry en Salesforce', { validated })
 
