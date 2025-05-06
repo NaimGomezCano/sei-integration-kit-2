@@ -48,6 +48,8 @@ export default class SalesforcePricebookEntryService {
     try {
       if (item.ItemPrices?.length) {
         for (const itemPriceList of item.ItemPrices) {
+          delay(2000)
+
           if (itemPriceList.Price === 0) {
             logger.warn('Saltamos creacion de PriceBookEntry porque el el precio es 0', itemPriceList)
             continue
