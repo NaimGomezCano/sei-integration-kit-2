@@ -59,7 +59,6 @@ export default class SalesforcePricebookEntryService {
 
           draft.UnitPrice = itemPriceList.Price
           draft.IsActive = true // TODO: De donde sale
-          draft.UseStandardPrice = true // TODO: De donde sale
 
           const validated = SfPricebookEntry.validateDraft(draft)
 
