@@ -2,16 +2,16 @@
 
 import winston from 'winston'
 import 'winston-daily-rotate-file'
-import { markSinkFailed, shouldSkipSink } from './sinkStatus';
-import { internalLogger } from '../internal';
+import { internalLogger } from '../internal'
+import { markSinkFailed, shouldSkipSink } from './sinkStatus'
 
 const fileTransport = new winston.transports.DailyRotateFile({
   dirname: 'logs',
   filename: '%DATE%.log',
   datePattern: 'YYYY-MM-DD',
   maxFiles: '14d',
-  maxSize: '10m',
-  zippedArchive: true,
+  maxSize: '500m',
+  zippedArchive: false,
   level: 'debug', // mínimo nivel
 })
 
@@ -24,14 +24,14 @@ const fileLogger = winston.createLogger({
 export function writeToFile(payload: any) {
   if (process.env.LOG_TO_FILE !== 'true') {
     return
-  } 
-  if (shouldSkipSink('file')) return;
+  }
+  if (shouldSkipSink('file')) return
 
   try {
-    const level = payload.level || 'info';
-    fileLogger.log(level, payload.message || '', payload);
+    const level = payload.level || 'info'
+    fileLogger.log(level, payload.message || '', payload)
   } catch (err) {
-    markSinkFailed('file');
+    markSinkFailed('file')
 
     internalLogger.core.error('[File] Error al escribir log', {
       module: 'file.sink',
@@ -39,6 +39,6 @@ export function writeToFile(payload: any) {
         message: (err as Error).message,
         stack: (err as Error).stack,
       },
-    });
+    })
   }
 }

@@ -9,6 +9,24 @@ sc stop "zzz_nssm_skintech_salesforce_integration78_test"
 
 sc delete "zzz_nssm_skintech_salesforce_integration178_test"
 
+
+
+# Infraestructura
+
+## Loki 
+Descargar Loki desde github
+Crear carpeta C:\Loki, poner el ejecutable y agregarlo al path
+
+
+## Promtail
+
+## Grafana SSO
+
+
+
+
+
+
 # Seidor REST API with Bun & Hono
 
 Este repositorio es una plantilla base
