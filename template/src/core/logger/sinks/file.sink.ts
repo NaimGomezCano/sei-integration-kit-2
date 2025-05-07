@@ -1,5 +1,3 @@
-// src/logger/sinks/file.sink.ts
-
 import winston from 'winston'
 import 'winston-daily-rotate-file'
 import { internalLogger } from '../internal'
@@ -12,12 +10,15 @@ const fileTransport = new winston.transports.DailyRotateFile({
   maxFiles: '14d',
   maxSize: '500m',
   zippedArchive: false,
-  level: 'debug', // mínimo nivel
+  level: 'debug',
 })
 
 const fileLogger = winston.createLogger({
   level: 'debug',
-  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf((info) => JSON.stringify(info) + '\n') // 👈 fuerza salto de línea
+  ),
   transports: [fileTransport],
 })
 

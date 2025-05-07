@@ -34,7 +34,6 @@ export function resetSinkStatus(sink?: string) {
 export function getSinkStatus(): Record<string, boolean> {
   return {
     file: !failedSinks.has('file'),
-    loki: !failedSinks.has('loki'),
     postgres: !failedSinks.has('postgres'),
   }
 }

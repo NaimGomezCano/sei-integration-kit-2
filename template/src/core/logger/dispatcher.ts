@@ -3,7 +3,6 @@
 import { getCurrentSpanId, getCurrentTraceId } from '../otel/utils'
 import { writeToConsole } from './sinks/console.sink'
 import { writeToFile } from './sinks/file.sink'
-import { writeToLoki } from './sinks/loki.sink'
 import { LogEntryBase, LogEntryExtended } from './types'
 
 export function dispatchLog(entry: LogEntryBase) {
@@ -22,5 +21,4 @@ export function dispatchLog(entry: LogEntryBase) {
 
   writeToConsole(payload)
   writeToFile(payload)
-  writeToLoki(payload)
 }

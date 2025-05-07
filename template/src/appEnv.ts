@@ -91,9 +91,6 @@ const configSchema = z.object({
 
   BP_CARDCODE_SERIES: z.string(),
 
-  LOG_TO_LOKI: booleanString,
-  LOKI_URL: z.string(),
-  LOG_LOKI_DEBUG: booleanString,
   LOG_TO_FILE: booleanString,
 
   SF_CLIENT_ID: z.string(),
