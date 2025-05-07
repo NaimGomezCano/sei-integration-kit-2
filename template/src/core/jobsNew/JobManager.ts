@@ -1,159 +1,113 @@
-// core/JobManager.ts
-// ------------------------------------------------------------
-// Gestor central de jobs para el framework.
-//  • Descubre los jobs decorados (@Job)
-//  • Crea una cola y un worker dedicado por job
-//  • Propaga el contexto OpenTelemetry
-//  • Permite invocar los jobs de forma síncrona mediante trigger()
-// ------------------------------------------------------------
+// JobManager.ts
+import PgBoss from 'pg-boss';
+import pLimit from 'p-limit';
+import { jobsRegistry } from './JobDecorator';
+import { getCurrentTraceparent, runWithContext } from './Telemetry';
 
-import PgBoss, {
-  Job as BossJob,
-  WorkOptions as BossWorkOptions,
-  ConstructorOptions as BossConfig,
-} from 'pg-boss';
-import { Telemetry } from './Telemetry';
-import { getRegisteredJobs } from './JobDecorator';
+// Inicializar pg-boss (usar la URL de conexión o config según entorno)
+const boss = new PgBoss(process.env.PGBOSS_DATABASE_URL || /* cadena de conexión */);
+ 
+// Mapa para rastrear promesas pendientes de jobs lanzados: jobId -> resolvers
+const pendingPromises: Map<string, { resolve: Function; reject: Function }> = new Map();
 
-type JobPayload = { traceparent: string; args: unknown[] };
+/**
+ * Inicia los workers para todos los jobs registrados con @Job.
+ * Debe llamarse una vez al arrancar la aplicación.
+ */
+export async function startJobWorkers(): Promise<void> {
+  await boss.start();  // inicia la conexión y prepara las tablas de pg-boss
 
-interface PendingRecord {
-  resolve: (value: unknown) => void;
-  reject: (reason?: any) => void;
-}
+  for (const [jobName, jobDef] of jobsRegistry) {
+    const { handler, concurrency, timeoutMs } = jobDef;
 
-export class JobManager {
-  private boss: PgBoss;
-  private ready = false;
-  /** Promesas en espera del resultado de cada jobId */
-  private pendings = new Map<string, PendingRecord>();
+    // Crear limitador de concurrencia para este job
+    const limit = pLimit(concurrency);
 
-  /** Configura pg‑boss y (opcionalmente) opciones por defecto para los workers */
-  constructor(
-    bossConfig: BossConfig,
-    private defaultWorkerOptions: BossWorkOptions = { teamConcurrency: 10 }
-  ) {
-    this.boss = new PgBoss(bossConfig);
-    this.boss.on('error', (err) => console.error('[PgBoss]', err));
-  }
+    // Suscribir un worker a la cola del job en pg-boss
+    await boss.subscribe(jobName, { teamSize: 1, teamConcurrency: concurrency }, async (job) => {
+      // El payload del job incluye los argumentos originales y el traceparent
+      const { traceparent, args } = job.data;
+      // Ejecutar el handler con p-limit (respeta concurrencia máxima)
+      return limit(async () => {
+        // Dentro de limit, extraemos el contexto de traceparent y ejecutamos el handler en él
+        const execPromise = runWithContext(traceparent, () => handler(...args));
+        // Si hay timeout configurado, aplicarlo
+        const resultPromise = timeoutMs 
+          ? applyTimeout(execPromise, timeoutMs) 
+          : execPromise;
+        // Esperar y retornar el resultado (o que lance si hay error/timeout)
+        return await resultPromise;
+      });
+    });
 
-  // ----------------------------------------------------------
-  //  Inicialización: arranca pg‑boss y registra los workers
-  // ----------------------------------------------------------
-  async start(): Promise<void> {
-    if (this.ready) return;
-
-    await this.boss.start();
-    const jobs = getRegisteredJobs();
-
-    if (jobs.length === 0) {
-      console.warn('[JobManager] ⚠️  No se encontraron jobs registrados.');
-    }
-
-    for (const { name, handler, options } of jobs) {
-      const queue = name; // Cola = nombre del job
-
-      // Asegura que la cola exista (idempotente)
-      await this.boss.createQueue(queue).catch(() => {});
-
-      // Worker dedicado
-      const workOptions: BossWorkOptions = {
-        ...this.defaultWorkerOptions,
-        ...options, // (si el decorador soporta opciones personalizadas)
-      };
-
-      await this.boss.work<JobPayload>(
-        queue,
-        workOptions,
-        async (job: BossJob<JobPayload>) => {
-          const { traceparent, args } = job.data;
-
-          // ---- Validación del contexto de trazado ----
-          if (!traceparent) {
-            const err = new Error('Falta traceparent: contexto obligatorio');
-            this.rejectJob(job.id, err);
-            throw err; // pg‑boss marcará el job como failed
-          }
-
-          // ---- Ejecutar con contexto OTEL ----
-          const parentCtx = Telemetry.extractContext(traceparent);
-          return Telemetry.runWithContext(parentCtx, async () => {
-            try {
-              const result = await (handler as any)(...(args || []));
-              this.resolveJob(job.id, result);
-              return result; // se almacena en completed
-            } catch (err) {
-              this.rejectJob(job.id, err);
-              throw err; // vuelve a pg‑boss → estado failed
-            }
-          });
-        }
-      );
-
-      console.log(`✔️  Job "${name}" registrado (cola "${queue}")`);
-    }
-
-    this.ready = true;
-  }
-
-  // ----------------------------------------------------------
-  //  Invoca un job y espera su resultado (síncrono para el caller)
-  // ----------------------------------------------------------
-  async trigger<Args extends unknown[], R>(
-    jobName: string,
-    ...args: Args
-  ): Promise<R> {
-    if (!this.ready) {
-      throw new Error('JobManager no iniciado: llama a start() antes de usar');
-    }
-
-    // Verifica contexto OTEL activo
-    const ctx = Telemetry.getCurrentContext();
-    if (!ctx) {
-      throw new Error(
-        'No hay contexto OpenTelemetry activo (traceparent es obligatorio)'
-      );
-    }
-
-    const traceparent = Telemetry.getTraceParentHeader(ctx);
-    const jobId = await this.boss.send(jobName, { traceparent, args });
-
-    // Crea la promesa que se resolverá desde el worker
-    return new Promise<R>((resolve, reject) => {
-      this.pendings.set(jobId, { resolve, reject });
+    // Suscribir a eventos de finalización de esta cola para obtener resultado/error
+    await boss.onComplete(jobName, (completion) => {
+      const originalJobId = completion.data.request.id;    // id del job original
+      const state = completion.data.state;                 // estado final: 'completed', 'failed', etc.
+      const pending = pendingPromises.get(originalJobId);  // promesa esperando resultado
+      if (!pending) return;  // podría no existir si no se lanzó via trigger
+      if (state === 'completed') {
+        // Tomar el resultado devuelto por el handler del job
+        const result = completion.data.response?.value;
+        pending.resolve(result);
+      } else if (state === 'failed') {
+        // Tomar información de error y rechazar la promesa con el mismo mensaje
+        const errorInfo = completion.data.response?.error || completion.data.response;
+        const errorMessage = (typeof errorInfo === 'string')
+          ? errorInfo 
+          : (errorInfo && errorInfo.message) || 'Job failed';
+        pending.reject(new Error(errorMessage));
+      } else {
+        // Otros estados como 'expired' (timeout global de pg-boss) u 'expired'/'cancelled'
+        pending.reject(new Error(`Job "${jobName}" terminó con estado ${state}`));
+      }
+      pendingPromises.delete(originalJobId);
     });
   }
-
-  // ----------------------------------------------------------
-  //  Helpers internos para resolver / rechazar jobs en espera
-  // ----------------------------------------------------------
-  private resolveJob(jobId: string, value: unknown) {
-    const pending = this.pendings.get(jobId);
-    if (pending) {
-      pending.resolve(value);
-      this.pendings.delete(jobId);
-    }
-  }
-
-  private rejectJob(jobId: string, reason: any) {
-    const pending = this.pendings.get(jobId);
-    if (pending) {
-      pending.reject(reason);
-      this.pendings.delete(jobId);
-    }
-  }
 }
 
-/* -----------------------------------------------------------------
-   Ejemplo de inicialización en tu punto de arranque de la app:
+/**
+ * Aplica un timeout a una promesa, rechazándola si excede el tiempo dado.
+ * @param promise Promesa original a vigilar.
+ * @param timeoutMs Tiempo máximo en milisegundos.
+ */
+function applyTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Job timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); }
+    );
+  });
+}
 
-   import { JobManager } from './core/JobManager';
-   import './jobs/EmailJobs';   // importa módulos con @Job
-   import './jobs/DataJobs';
-
-   const jobManager = new JobManager({ connectionString: process.env.DATABASE_URL });
-   await jobManager.start();
-
-   // Luego en cualquier parte:
-   const resultado = await jobManager.trigger('send-welcome-email', userId);
------------------------------------------------------------------- */
+/**
+ * Dispara un job por nombre con los argumentos dados, retornando una promesa con su resultado.
+ * Debe existir un contexto de OpenTelemetry activo (traceparent) para propagar.
+ * @param jobName Nombre del job (cola) a ejecutar.
+ * @param args Parámetros que acepta el handler del job.
+ * @returns Promesa que se resuelve con el resultado del job, o se rechaza con el error lanzado en el job.
+ */
+export async function trigger<ResultType = any>(jobName: string, ...args: any[]): Promise<ResultType> {
+  // Verificar contexto de trace (traceparent obligatorio)
+  const traceparent = getCurrentTraceparent();
+  if (!traceparent) {
+    throw new Error('No hay contexto de OpenTelemetry activo (traceparent es obligatorio)');
+  }
+  // Verificar que el job exista en el registro
+  if (!jobsRegistry.has(jobName)) {
+    throw new Error(`No existe ningún job registrado con el nombre "${jobName}"`);
+  }
+  // Encolar el job en pg-boss con sus datos (args + traceparent)
+  const jobId = await boss.publish(jobName, { args, traceparent });
+  // Devolver una promesa que se resolverá cuando llegue el evento de finalización
+  return new Promise((resolve, reject) => {
+    if (jobId) {
+      pendingPromises.set(jobId, { resolve, reject });
+    } else {
+      reject(new Error(`Failed to publish job "${jobName}"`));
+    }
+  });
+}
