@@ -1,85 +1,100 @@
-// src/logger/fileSink.ts
 import winston from 'winston'
 import 'winston-daily-rotate-file'
 import { internalLogger } from '../internal'
-import { LogLevel } from '../types'
 import { markSinkFailed, shouldSkipSink } from './sinkStatus'
+import { LogCategory, LogEntryBase, LogLevel } from '../types'
 
-function isValidLevel(level: any): level is LogLevel {
-  return ['debug', 'info', 'warn', 'error', 'critical', 'metrics'].includes(level)
-}
-
-function safeToString(data: unknown): string {
-  try {
-    return JSON.stringify(data)
-  } catch {
-    return '[Unserializable log object]'
-  }
-}
-
-// 👉 1.  Variables de entorno reutilizables
+/*──────────────────────── VARIABLES DE ENTORNO ────────────────────────*/
 const {
   LOG_TO_FILE,
   LOG_DIR = 'logs',
-  NODE_ENV = 'development', // se enviará como label “environment”
+  NODE_ENV = 'development',
 } = process.env
 
-// 👉 2.  Rotación: mismo patrón, pero con extensión fija y compresión opcional
+/*──────────────────────── NIVELES PERMITIDOS ──────────────────────────*/
+const LEVELS: readonly LogLevel[] = [
+  'debug',
+  'info',
+  'warn',
+  'error',
+  'critical',
+  'metrics',
+] as const
+
+const isValidLevel = (lvl: string): lvl is LogLevel =>
+  (LEVELS as readonly string[]).includes(lvl)
+
+/*──────────────────────── TRANSPORTE ROTATIVO ─────────────────────────*/
 const fileTransport = new winston.transports.DailyRotateFile({
   dirname: LOG_DIR,
-  filename: '%DATE%.log', // p.ej. 2025‑05‑07.log
+  filename: '%DATE%.log',
   datePattern: 'YYYY-MM-DD',
   maxFiles: '14d',
   maxSize: '500m',
-  zippedArchive: true, // ahorra espacio y no rompe promtail
+  zippedArchive: true,
   level: 'debug',
 })
 
-// 👉 3.  Formato: JSON plano + \n (Promtail necesita “JSON Lines”)
+/*──────────────────────── FORMATO JSON LINES ──────────────────────────*/
 const jsonLineFormat = winston.format.printf((info) => {
   try {
-    const base = {
-      level: isValidLevel(info.level) ? info.level : 'info',
-      message: typeof info.message === 'string' ? info.message : JSON.stringify(info.message),
-      category: typeof info.category === 'string' ? info.category : 'core',
+    /* 1. Normalizamos y tipamos */
+    const level: LogLevel = isValidLevel(info.level) ? info.level : 'info'
+    const category: LogCategory =
+      (info as any).category ?? ('core' as LogCategory)
+
+    const message: string =
+      typeof info.message === 'string'
+        ? info.message
+        : info.message !== undefined
+        ? JSON.stringify(info.message)
+        : ''
+
+    /* 2. Construimos el objeto que SATISFACE LogEntryBase */
+    const base: LogEntryBase & { timestamp: string; environment: string } = {
+      level,
+      message,
+      category,
       timestamp: new Date().toISOString(),
       environment: NODE_ENV,
-      ...(info.metadata ?? {}),
     }
 
-    return `${JSON.stringify(base)}\n`
+    /* 3. Mezclamos metadatos (“aplanamos”) */
+    if ((info as any).metadata) {
+      Object.assign(base, (info as any).metadata)
+    }
+
+    return JSON.stringify(base) + '\n'
   } catch (err) {
-    // Fallback: log de error si falla el formateo principal
-    const fallback = {
-      level: 'error',
-      message: '[Logger] Error al formatear log',
-      category: 'core',
-      timestamp: new Date().toISOString(),
-      environment: NODE_ENV,
-      originalError: (err as Error).message,
-      raw: safeToString(info),
-    }
-
-    return `${JSON.stringify(fallback)}\n`
+    /* 🔴 Fallback SIEMPRE serializa algo legible por Promtail */
+    return (
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        environment: NODE_ENV,
+        level: 'error',
+        message: '[LOGGER_FORMAT_ERROR]',
+        category: 'core',
+        formatError: (err as Error).message,
+      }) + '\n'
+    )
   }
 })
 
+/*──────────────────────── LOGGER FINAL ────────────────────────────────*/
 const fileLogger = winston.createLogger({
   level: 'debug',
-  format: winston.format.combine(
-    winston.format.uncolorize(), // evita códigos ANSI
-    jsonLineFormat
-  ),
+  format: winston.format.combine(winston.format.uncolorize(), jsonLineFormat),
   transports: [fileTransport],
 })
 
+/*──────────────────────── API PARA TU APP ─────────────────────────────*/
 export function writeToFile(payload: any) {
   if (LOG_TO_FILE !== 'true') return
   if (shouldSkipSink('file')) return
 
   try {
-    const level = payload.level || 'info'
-    fileLogger.log(level, payload.message || '', payload)
+    const lvl: LogLevel = isValidLevel(payload.level) ? payload.level : 'info'
+    fileLogger.log(lvl, payload.message ?? '', payload)
   } catch (err) {
     markSinkFailed('file')
     internalLogger.core.error('[File] Error al escribir log', {
