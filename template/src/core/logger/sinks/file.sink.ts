@@ -1,33 +1,33 @@
+// src/logger/fileSink.ts
+import fs from 'fs'
+import path from 'path'
 import winston from 'winston'
 import 'winston-daily-rotate-file'
+
 import { internalLogger } from '../internal'
+import type { LogCategory, LogEntryBase, LogLevel } from '../types'
 import { markSinkFailed, shouldSkipSink } from './sinkStatus'
-import { LogCategory, LogEntryBase, LogLevel } from '../types'
 
-/*──────────────────────── VARIABLES DE ENTORNO ────────────────────────*/
-const {
-  LOG_TO_FILE,
-  LOG_DIR = 'logs',
-  NODE_ENV = 'development',
-} = process.env
+/*─────────────────────── CONSTANTES A PARTIR DE appEnv ───────────────────────*/
 
-/*──────────────────────── NIVELES PERMITIDOS ──────────────────────────*/
-const LEVELS: readonly LogLevel[] = [
-  'debug',
-  'info',
-  'warn',
-  'error',
-  'critical',
-  'metrics',
-] as const
+/** Carpeta de destino según modo deploy */
+const LOG_DIR = process.env.IS_DEPLOY ? path.resolve(process.env.DEPLOY_DIR!, 'logs') : path.resolve(process.cwd(), 'logs')
 
-const isValidLevel = (lvl: string): lvl is LogLevel =>
-  (LEVELS as readonly string[]).includes(lvl)
+/** Asegúrate de que existe */
+if (process.env.LOG_TO_FILE && !fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true })
+  internalLogger.core.info(`[FileSink] Carpeta de logs creada: ${LOG_DIR}`)
+}
 
-/*──────────────────────── TRANSPORTE ROTATIVO ─────────────────────────*/
+/*──────────────────────── NIVELES PERMITIDOS ─────────────────────────*/
+const LEVELS: readonly LogLevel[] = ['debug', 'info', 'warn', 'error', 'critical', 'metrics'] as const
+
+const isValidLevel = (lvl: string): lvl is LogLevel => (LEVELS as readonly string[]).includes(lvl)
+
+/*──────────────────────── TRANSPORTE ROTATIVO ────────────────────────*/
 const fileTransport = new winston.transports.DailyRotateFile({
   dirname: LOG_DIR,
-  filename: '%DATE%.log',
+  filename: '%DATE%.log', // p.ej. 2025‑05‑07.log
   datePattern: 'YYYY-MM-DD',
   maxFiles: '14d',
   maxSize: '500m',
@@ -35,42 +35,33 @@ const fileTransport = new winston.transports.DailyRotateFile({
   level: 'debug',
 })
 
-/*──────────────────────── FORMATO JSON LINES ──────────────────────────*/
+/*──────────────────────── FORMATO JSON LINES ─────────────────────────*/
 const jsonLineFormat = winston.format.printf((info) => {
   try {
-    /* 1. Normalizamos y tipamos */
     const level: LogLevel = isValidLevel(info.level) ? info.level : 'info'
-    const category: LogCategory =
-      (info as any).category ?? ('core' as LogCategory)
+    const category: LogCategory = (info as any).category ?? 'core'
 
-    const message: string =
-      typeof info.message === 'string'
-        ? info.message
-        : info.message !== undefined
-        ? JSON.stringify(info.message)
-        : ''
+    const message = typeof info.message === 'string' ? info.message : info.message !== undefined ? JSON.stringify(info.message) : ''
 
-    /* 2. Construimos el objeto que SATISFACE LogEntryBase */
     const base: LogEntryBase & { timestamp: string; environment: string } = {
       level,
       message,
       category,
-      timestamp: new Date().toISOString(),
-      environment: NODE_ENV,
+      timestamp: new Date().toISOString(), // RFC3339Nano
+      environment: process.env.NODE_ENV!,
     }
 
-    /* 3. Mezclamos metadatos (“aplanamos”) */
     if ((info as any).metadata) {
       Object.assign(base, (info as any).metadata)
     }
 
     return JSON.stringify(base) + '\n'
   } catch (err) {
-    /* 🔴 Fallback SIEMPRE serializa algo legible por Promtail */
+    // Fallback: nunca perder la línea
     return (
       JSON.stringify({
         timestamp: new Date().toISOString(),
-        environment: NODE_ENV,
+        environment: process.env.NODE_ENV!,
         level: 'error',
         message: '[LOGGER_FORMAT_ERROR]',
         category: 'core',
@@ -80,16 +71,16 @@ const jsonLineFormat = winston.format.printf((info) => {
   }
 })
 
-/*──────────────────────── LOGGER FINAL ────────────────────────────────*/
+/*──────────────────────── LOGGER PRINCIPAL ──────────────────────────*/
 const fileLogger = winston.createLogger({
   level: 'debug',
   format: winston.format.combine(winston.format.uncolorize(), jsonLineFormat),
   transports: [fileTransport],
 })
 
-/*──────────────────────── API PARA TU APP ─────────────────────────────*/
+/*──────────────────────── FUNCIÓN PÚBLICA ────────────────────────────*/
 export function writeToFile(payload: any) {
-  if (LOG_TO_FILE !== 'true') return
+  if (!process.env.LOG_TO_FILE!) return
   if (shouldSkipSink('file')) return
 
   try {
@@ -97,7 +88,7 @@ export function writeToFile(payload: any) {
     fileLogger.log(lvl, payload.message ?? '', payload)
   } catch (err) {
     markSinkFailed('file')
-    internalLogger.core.error('[File] Error al escribir log', {
+    internalLogger.core.error('[FileSink] Error al escribir log', {
       module: 'file.sink',
       error: { message: (err as Error).message, stack: (err as Error).stack },
     })

@@ -35,7 +35,7 @@ async function bootstrap() {
         port: appEnv.APP_PORT,
       },
       async (info: any) => {
-        internalLogger.core.info(`Server is running on http://localhost:${info.port}`)
+        internalLogger.core.info(`NGOMEZ Server is running on http://localhost:${info.port}`)
       }
     )
 
