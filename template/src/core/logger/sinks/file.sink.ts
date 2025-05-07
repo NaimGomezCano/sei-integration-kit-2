@@ -5,7 +5,7 @@ import winston from 'winston'
 import 'winston-daily-rotate-file'
 
 import { internalLogger } from '../internal'
-import type { LogCategory, LogEntryBase, LogLevel } from '../types'
+import type { LogCategory, LogEntryBase, LogEntryExtended, LogLevel } from '../types'
 import { markSinkFailed, shouldSkipSink } from './sinkStatus'
 
 /*─────────────────────── CONSTANTES A PARTIR DE appEnv ───────────────────────*/
@@ -38,6 +38,8 @@ const fileTransport = new winston.transports.DailyRotateFile({
 /*──────────────────────── FORMATO JSON LINES ─────────────────────────*/
 const jsonLineFormat = winston.format.printf((info) => {
   try {
+    const logEntry = info as unknown as LogEntryExtended
+
     const level: LogLevel = isValidLevel(info.level) ? info.level : 'info'
     const category: LogCategory = (info as any).category ?? 'core'
 
@@ -51,11 +53,21 @@ const jsonLineFormat = winston.format.printf((info) => {
       environment: process.env.NODE_ENV!,
     }
 
+    const brainrot = {
+      environment: logEntry.environment,
+      traceId: logEntry.traceId,
+      timestamp: logEntry.timestamp,
+      category: logEntry.category,
+      message: logEntry.message,
+      meta: logEntry.metadata,
+    }
+
     if ((info as any).metadata) {
       Object.assign(base, (info as any).metadata)
     }
 
-    return JSON.stringify(base)
+    //return JSON.stringify(base)
+    return JSON.stringify(brainrot)
   } catch (err) {
     // Fallback: nunca perder la línea
     return JSON.stringify({

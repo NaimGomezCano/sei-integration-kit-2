@@ -17,12 +17,12 @@ global:
     max_poll_frequency: 500ms
 
 scrape_configs:
-  - job_name: SEI-SF-INTEGRATION
+  - job_name: winston-freeform
     static_configs:
       - targets: [localhost]
         labels:
+          job: winston-freeform
           __path__: C:\\SeidorServices\\SEI-SF-INTEGRATION\\test\\logs\\*.log*
-
     pipeline_stages:
       - match:
           selector: '{job="winston-freeform"}'
