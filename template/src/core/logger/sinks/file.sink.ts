@@ -55,19 +55,17 @@ const jsonLineFormat = winston.format.printf((info) => {
       Object.assign(base, (info as any).metadata)
     }
 
-    return JSON.stringify(base) + '\n'
+    return JSON.stringify(base)
   } catch (err) {
     // Fallback: nunca perder la línea
-    return (
-      JSON.stringify({
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV!,
-        level: 'error',
-        message: '[LOGGER_FORMAT_ERROR]',
-        category: 'core',
-        formatError: (err as Error).message,
-      }) + '\n'
-    )
+    return JSON.stringify({
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV!,
+      level: 'error',
+      message: '[LOGGER_FORMAT_ERROR]',
+      category: 'core',
+      formatError: (err as Error).message,
+    })
   }
 })
 
