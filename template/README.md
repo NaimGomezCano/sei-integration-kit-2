@@ -16,10 +16,10 @@ sc delete "zzz_nssm_skintech_salesforce_integration178_test"
 ## Loki 
 Descargar Loki desde github
 Crear carpeta C:\Loki, poner el ejecutable y agregarlo al path
-
+.\loki.exe --config.file=loki-config.yaml
 
 ## Promtail
-
+ promtail --config.file=promtail.yaml
 ## Grafana SSO
 
 

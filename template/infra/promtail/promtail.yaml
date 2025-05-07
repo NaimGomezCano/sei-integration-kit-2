@@ -1,26 +1,53 @@
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
+  log_level: debug
 
 positions:
   filename: C:\promtail\positions.yaml
 
 clients:
   - url: http://127.0.0.1:3100/loki/api/v1/push
+    batchwait: 200ms
+    batchsize: 16
+
+global:
+  file_watch_config:
+    min_poll_frequency: 250ms
+    max_poll_frequency: 500ms
 
 scrape_configs:
-  - job_name: winston-dev
+  - job_name: SEI-SF-INTEGRATION
     static_configs:
       - targets: [localhost]
         labels:
-          job: winston
-          env: dev
-          __path__: C:\logs\dev\*.log
+          __path__: C:\\SeidorServices\\SEI-SF-INTEGRATION\\test\\logs\\*.log*
 
-  - job_name: winston-test
-    static_configs:
-      - targets: [localhost]
-        labels:
-          job: winston
-          env: test
-          __path__: C:\SeidorServices\SEI-SF-INTEGRATION\test\logs\*.log
+    pipeline_stages:
+      - match:
+          selector: '{job="winston-freeform"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  category: category
+                  environment: environment
+                  message: message
+                  timestamp: timestamp
+            - timestamp:
+                source: timestamp
+                format: RFC3339Nano
+                action_on_failure: skip # Muy importante para no perder logs
+            - labels:
+                level: ''
+                category: ''
+                environment: ''
+            - output:
+                source: message
+
+      # Fallback: si no es JSON
+      - match:
+          selector: '{job="winston-freeform", level=""}'
+          stages:
+            - regex:
+                expression: '.*'
