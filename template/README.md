@@ -39,16 +39,13 @@ nssm install sei-promtail "C:\Promtail\promtail.exe" "-config.file=C:\Promtail\p
 nssm set sei-promtail AppDirectory "C:\Promtail"
 nssm set sei-promtail DisplayName "sei-promtail"
 nssm set sei-promtail Description "sei-promtail"
-
 nssm set sei-promtail AppStdout "C:\Promtail\nssm-logs\promtail-output.log"
 nssm set sei-promtail AppStderr "C:\Promtail\nssm-logs\promtail-error.log"
 nssm set sei-promtail AppRotateFiles 1
 nssm set sei-promtail AppRotateOnline 1
 nssm set sei-promtail AppRotateSeconds 0
 nssm set sei-promtail AppRotateBytes 10485760
-
 nssm set sei-promtail Start SERVICE_AUTO_START
-
 nssm start sei-promtail
 
 ## Grafana SSO
