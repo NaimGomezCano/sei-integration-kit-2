@@ -9,23 +9,49 @@ sc stop "zzz_nssm_skintech_salesforce_integration78_test"
 
 sc delete "zzz_nssm_skintech_salesforce_integration178_test"
 
-
-
 # Infraestructura
 
-## Loki 
+## Loki
+
 Descargar Loki desde github
 Crear carpeta C:\Loki, poner el ejecutable y agregarlo al path
 .\loki.exe --config.file=loki-config.yaml
 
+mkdir "C:\Loki\nssm-logs"
+nssm install sei-loki "C:\Loki\loki.exe" "-config.file=C:\Loki\loki-config.yaml"
+nssm set sei-loki AppDirectory "C:\Loki"
+nssm set sei-loki DisplayName "sei-loki"
+nssm set sei-loki Description "sei-loki"
+nssm set sei-loki AppStdout "C:\Loki\nssm-logs\loki-output.log"
+nssm set sei-loki AppStderr "C:\Loki\nssm-logs\loki-error.log"
+nssm set sei-loki AppRotateFiles 1
+nssm set sei-loki AppRotateOnline 1
+nssm set sei-loki AppRotateSeconds 0
+nssm set sei-loki AppRotateBytes 10485760
+nssm set sei-loki Start SERVICE_AUTO_START
+nssm start sei-loki
+
 ## Promtail
- promtail --config.file=promtail.yaml
+
+mkdir "C:\Promtail\nssm-logs"
+
+nssm install sei-promtail "C:\Promtail\promtail.exe" "-config.file=C:\Promtail\promtail-config.yaml"
+nssm set sei-promtail AppDirectory "C:\Promtail"
+nssm set sei-promtail DisplayName "sei-promtail"
+nssm set sei-promtail Description "sei-promtail"
+
+nssm set sei-promtail AppStdout "C:\Promtail\nssm-logs\promtail-output.log"
+nssm set sei-promtail AppStderr "C:\Promtail\nssm-logs\promtail-error.log"
+nssm set sei-promtail AppRotateFiles 1
+nssm set sei-promtail AppRotateOnline 1
+nssm set sei-promtail AppRotateSeconds 0
+nssm set sei-promtail AppRotateBytes 10485760
+
+nssm set sei-promtail Start SERVICE_AUTO_START
+
+nssm start sei-promtail
+
 ## Grafana SSO
-
-
-
-
-
 
 # Seidor REST API with Bun & Hono
 
