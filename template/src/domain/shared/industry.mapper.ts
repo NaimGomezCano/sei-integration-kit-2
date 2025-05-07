@@ -19,9 +19,9 @@ export class IndustryMapper {
     { code: 10, name: 'Otros' },
   ]
 
-  public getCodeByName(name: string | null | undefined): number | null {
+  public getCodeByName(name: string | null | undefined): number | undefined {
     if (name == null) {
-      return null
+      return undefined
     }
     const industry = this.industries.find((ind) => ind.name.toLowerCase() === name.toLowerCase())
     if (!industry) {
@@ -30,9 +30,9 @@ export class IndustryMapper {
     return industry.code
   }
 
-  public getNameByCode(code: number | null | undefined): string | null {
+  public getNameByCode(code: number | null | undefined): string | undefined {
     if (code == null) {
-      return null
+      return undefined
     }
     const industry = this.industries.find((ind) => ind.code === code)
     if (!industry) {

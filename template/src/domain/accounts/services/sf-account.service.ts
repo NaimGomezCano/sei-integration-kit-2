@@ -25,9 +25,9 @@ export default class SalesforceAccountService {
   private readonly industryService = new IndustryMapper()
 
   private validatePaymentCode(codigo: string | null | undefined): string {
-    const codigosValidos = ['CONTADO (C)', 'EFECTIVO (C)', 'RD (C)', 'TAL (C)', 'TPV (C)', 'TPV VIRTUAL (C)', 'TRF (C)', 'TRF POPULAR (C)']
-    if (!codigo || codigo.trim() === '') return 'OTROS'
-    return codigosValidos.includes(codigo.trim()) ? codigo.trim() : 'OTROS'
+    const codigosValidos = ['CONTADO (C)', 'EFECTIVO (C)', 'RD (C)', 'TPV (C)', 'TPV VIRTUAL (C)', 'TRF (C)']
+    if (!codigo || codigo.trim() === '') return 'Otro'
+    return codigosValidos.includes(codigo.trim()) ? codigo.trim() : 'Otro'
   }
 
   stats = {
@@ -35,8 +35,6 @@ export default class SalesforceAccountService {
     creadas: 0,
     actualizadas: 0,
     errores: 0,
-    conSalesforceIdPeroNoExiste: 0,
-    salesforceActualizadoEnSAP: 0,
     tiempoInicio: Date.now(),
   }
 
@@ -86,8 +84,8 @@ export default class SalesforceAccountService {
           draft.BillingStreet = sfBillTo.Street
         } else {
           draft.BillingCity = 'Ciudad no indicada'
-          draft.BillingCountry = 'ES'
-          draft.BillingPostalCode = 'Código postal no indicado'
+          draft.BillingCountry = 'Spain'
+          draft.BillingPostalCode = '00000'
           draft.BillingStateCode = 'M'
           draft.BillingStreet = 'Dirección no indicada completamente'
         }
@@ -113,8 +111,8 @@ export default class SalesforceAccountService {
           draft.ShippingStreet = sfShipTo.Street
         } else {
           draft.ShippingCity = 'Ciudad no indicada'
-          draft.ShippingCountry = 'ES'
-          draft.ShippingPostalCode = 'Código postal no indicado'
+          draft.ShippingCountry = 'Spain'
+          draft.ShippingPostalCode = '00000'
           draft.ShippingStateCode = 'M'
           draft.ShippingStreet = 'Dirección no indicada completamente'
         }
@@ -181,6 +179,9 @@ export default class SalesforceAccountService {
           logger.info('BP procesada', {
             cardCode: bp.CardCode,
             progreso: `${this.stats.total} BPs`,
+            creadas: `${this.stats.creadas}`,
+            actualizadas: `${this.stats.actualizadas}`,
+            errores: `${this.stats.errores}`,
           })
 
           await delay(100)

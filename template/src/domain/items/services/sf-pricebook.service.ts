@@ -82,7 +82,10 @@ export default class SalesforcePricebookService {
 
           logger.info('Pricebook procesado', {
             listNo: priceList.PriceListNo,
-            progreso: `${this.stats.total} pricebooks`,
+            progreso: `${this.stats.total} BPs`,
+            creadas: `${this.stats.creadas}`,
+            actualizadas: `${this.stats.actualizadas}`,
+            errores: `${this.stats.errores}`,
           })
 
           await delay(100)

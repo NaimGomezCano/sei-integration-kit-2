@@ -29,8 +29,6 @@ export default class SalesforceContactService {
     creadas: 0,
     actualizadas: 0,
     errores: 0,
-    conSalesforceIdPeroNoExiste: 0,
-    salesforceActualizadoEnSAP: 0,
     tiempoInicio: Date.now(),
   }
 
@@ -117,7 +115,11 @@ export default class SalesforceContactService {
           logger.info('BP procesada', {
             cardCode: bp.CardCode,
             progreso: `${this.stats.total} BPs`,
+            creadas: `${this.stats.creadas}`,
+            actualizadas: `${this.stats.actualizadas}`,
+            errores: `${this.stats.errores}`,
           })
+
           await delay(500)
         }
       })

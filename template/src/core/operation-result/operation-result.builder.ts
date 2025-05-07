@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { OperationCoreSchema } from './schemas/operation-core.schema'
 import { OperationResultSchema } from './schemas/operation-result.schema'
 import { OperationResult } from './types'
-import { safeRemoveNulls } from './utils/safe-remove-nulls.util'
 
 const RAW_EXCLUDED_FIELDS = ['_sessionCache'] // TODO: parametrizar
 
@@ -113,7 +112,7 @@ export class OperationResultBuilder<T = unknown> {
   /**
    * Genera el objeto final validado
    */
-  build(options?: { includeNulls?: boolean }): OperationResult<T> {
+  /*build(options?: { includeNulls?: boolean }): OperationResult<T> {
     OperationResultSchema.parse(this.result)
 
     if (options?.includeNulls) {
@@ -121,5 +120,10 @@ export class OperationResultBuilder<T = unknown> {
     }
 
     return safeRemoveNulls(this.result) as OperationResult<T>
+  }*/
+  build(options?: { includeNulls?: boolean }): OperationResult<T> {
+    OperationResultSchema.parse(this.result)
+
+    return this.result
   }
 }

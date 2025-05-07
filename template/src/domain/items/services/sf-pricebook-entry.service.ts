@@ -58,16 +58,15 @@ export default class SalesforcePricebookEntryService {
           continue
         }
 
-        draft.Product2Id = item.U_SEI_SFID
         const priceList = await requireEntity(this.sapPriceListRepo.findByIdOrNull(itemPriceList.PriceList))
-        draft.Pricebook2Id = priceList.U_SEI_SFID!
-        draft.UnitPrice = itemPriceList.Price
-        draft.IsActive = true
 
-        const validated = SfPricebookEntry.validateDraft(draft)
         const exists = await this.sfPricebookEntryRepository.findByCompositeOrNull(item.U_SEI_SFID!, priceList.U_SEI_SFID!)
 
         if (exists) {
+          draft.UnitPrice = itemPriceList.Price
+          draft.IsActive = true
+          const validated = SfPricebookEntry.validateDraft(draft)
+
           await this.sfPricebookEntryRepository.update(exists.Id!, validated)
           this.stats.actualizadas++
           logger.info('PricebookEntry actualizado', {
@@ -76,6 +75,12 @@ export default class SalesforcePricebookEntryService {
             sfId: exists.Id,
           })
         } else {
+          draft.Product2Id = item.U_SEI_SFID
+          draft.Pricebook2Id = priceList.U_SEI_SFID!
+          draft.UnitPrice = itemPriceList.Price
+          draft.IsActive = true
+          const validated = SfPricebookEntry.validateDraft(draft)
+
           const created = await this.sfPricebookEntryRepository.create(validated)
           this.stats.creadas++
           logger.info('PricebookEntry creado', {
@@ -111,7 +116,10 @@ export default class SalesforcePricebookEntryService {
 
           logger.info('Item procesado', {
             itemCode: item.ItemCode,
-            progreso: `${this.stats.total} items`,
+            progreso: `${this.stats.total} BPs`,
+            creadas: `${this.stats.creadas}`,
+            actualizadas: `${this.stats.actualizadas}`,
+            errores: `${this.stats.errores}`,
           })
 
           await delay(100)

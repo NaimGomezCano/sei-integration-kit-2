@@ -33,7 +33,7 @@ export default class SapAccountService {
     bpDraft.PeymentMethodCode = input.PaymentMethodCode
     bpDraft.CardName = input.CardName
     bpDraft.CardForeignName = input.CardFName
-    bpDraft.FederalTaxID = 'ES' + input.FederalTaxID
+    bpDraft.FederalTaxID = input.FederalTaxID != null ? 'ES' + input.FederalTaxID : undefined
     bpDraft.Industry = this.industryMapper.getCodeByName(input.Industry)
     bpDraft.Phone1 = input.Phone1
     bpDraft.Website = input.Website
@@ -42,6 +42,21 @@ export default class SapAccountService {
     if (input.Active === false) {
       bpDraft.Frozen = 'tYES'
       bpDraft.FrozenRemarks = 'Desactivado por integración'
+      bpDraft.FrozenFrom = null
+      bpDraft.FrozenTo = null
+      bpDraft.Valid = 'tNO'
+      bpDraft.ValidFrom = null
+      bpDraft.ValidTo = null
+      bpDraft.ValidRemarks = null
+    } else {
+      bpDraft.Frozen = 'tNO'
+      bpDraft.FrozenRemarks = null
+      bpDraft.FrozenFrom = null
+      bpDraft.FrozenTo = null
+      bpDraft.Valid = 'tYES'
+      bpDraft.ValidFrom = null
+      bpDraft.ValidTo = null
+      bpDraft.ValidRemarks = null
     }
 
     bpDraft.BPAddresses = []
@@ -74,7 +89,7 @@ export default class SapAccountService {
       // }
     }
 
-    const bp = SapBusinessPartner.validateDraft(bpDraft)
+    const bp = SapBusinessPartner.validateCleanDraft(bpDraft)
 
     logger.info(`Actualizando cuenta ${existingBp.CardCode} en repositorio...`)
     await this.bpRepo.update(existingBp.CardCode!, bp)
@@ -106,7 +121,7 @@ export default class SapAccountService {
     bpDraft.U_SEI_SFID = input.SalesforceId
     bpDraft.CardName = input.CardName
     bpDraft.CardForeignName = input.CardFName
-    bpDraft.FederalTaxID = 'ES' + input.FederalTaxID
+    bpDraft.FederalTaxID = input.FederalTaxID != null ? 'ES' + input.FederalTaxID : undefined
     bpDraft.Industry = this.industryMapper.getCodeByName(input.Industry)
     bpDraft.Phone1 = input.Phone1
     bpDraft.Website = input.Website

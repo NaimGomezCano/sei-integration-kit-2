@@ -84,7 +84,10 @@ export default class SalesforceProductService {
 
           logger.info('Item procesado', {
             itemCode: item.ItemCode,
-            progreso: `${this.stats.total} items`,
+            progreso: `${this.stats.total} BPs`,
+            creadas: `${this.stats.creadas}`,
+            actualizadas: `${this.stats.actualizadas}`,
+            errores: `${this.stats.errores}`,
           })
 
           await delay(100)

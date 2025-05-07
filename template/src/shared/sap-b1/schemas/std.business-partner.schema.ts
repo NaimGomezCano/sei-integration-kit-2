@@ -46,6 +46,14 @@ export const SBO_STD_BusinessPartner = z.object({
   Website: z.string().nullish(),
   Frozen: z.string().nullish(),
   FrozenRemarks: z.string().nullish(),
+
+  FrozenFrom: z.string().nullish(),
+  FrozenTo: z.string().nullish(),
+  Valid: z.string().nullish(),
+  ValidFrom: z.string().nullish(),
+  ValidTo: z.string().nullish(),
+  ValidRemarks: z.string().nullish(),
+
   BilltoDefault: z.string().nullish(),
   ShipToDefault: z.string().nullish(),
   BillToState: z.string().nullish(),
