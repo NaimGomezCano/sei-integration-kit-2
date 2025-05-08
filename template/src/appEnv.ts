@@ -5,9 +5,15 @@ import stripJsonComments from 'strip-json-comments'
 import { z } from 'zod'
 import { internalLogger } from './core/logger/internal'
 
+internalLogger.env.info('Cargando variables de entorno cargadas desde .env.deploy y argumentos')
+
 // 🧠 Leer argumentos como --env=production y --deploy=true
 const envArg = process.argv.find((arg) => arg.startsWith('--env='))
 const deployArg = process.argv.find((arg) => arg === '--deploy=true')
+
+internalLogger.env.info('envArg', { envArg: envArg })
+internalLogger.env.info('deployArg', { deployArg: deployArg })
+internalLogger.env.info('process.env.NODE_ENV', { 'process.env.NODE_ENV': process.env.NODE_ENV })
 
 const parsedNodeEnv = envArg?.split('=')[1] ?? process.env.NODE_ENV
 const isDeploy = deployArg ? 'true' : process.env.IS_DEPLOY
