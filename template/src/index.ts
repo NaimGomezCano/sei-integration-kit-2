@@ -16,34 +16,9 @@ import { getAppWelcomeInfo } from './shared/utils/global'
 
 async function bootstrap() {
   try {
-    const usuario: {
-      id: number
-      nombre: string
-      correo: string
-      edad: number
-      activo: boolean
-      direccion: {
-        calle: string
-        ciudad: string
-        pais: string
-      }
-      intereses: string[]
-    } = {
-      id: 1,
-      nombre: 'María González',
-      correo: 'maria.gonzalez@example.com',
-      edad: 29,
-      activo: true,
-      direccion: {
-        calle: 'Calle Falsa 123',
-        ciudad: 'Madrid',
-        pais: 'España',
-      },
-      intereses: ['lectura', 'viajes', 'tecnología'],
-    }
+  
 
-    internalLogger.core.info('Starting Application...', usuario)
-    logger.info('Starting Application...', usuario)
+    logger.info('Starting Application...')
 
     // 1. Inicializar Telemetría
     await initializeTelemetry()
