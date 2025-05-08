@@ -1,4 +1,5 @@
 import { internalLogger } from '@/core/logger/internal'
+import { LogEntryApi } from '@/core/logger/types'
 import { MiddlewareHandler } from 'hono'
 
 export const loggerMiddleware: MiddlewareHandler = async (c, next) => {
@@ -24,7 +25,11 @@ export const loggerMiddleware: MiddlewareHandler = async (c, next) => {
 
   const start = Date.now()
 
-  await next()
+  try {
+    await next()
+  } catch (error) {
+    console.log(1)
+  }
 
   const statusCode = c.res.status
   const durationMs = Date.now() - start
@@ -44,21 +49,20 @@ export const loggerMiddleware: MiddlewareHandler = async (c, next) => {
     responseBody = 'Could not read response body'
   }
 
-  const logData = {
+  const logData: LogEntryApi = {
     method,
     path,
     statusCode,
     durationMs,
     ip,
     userAgent,
-    traceId: undefined,
-    requestBody,
+     requestBody,
     responseBody,
   }
 
-  if (statusCode >= 500) {
-    internalLogger.api.error(logData)
+  if (statusCode >= 400) {
+    internalLogger.api.errorRequest(logData)
   } else {
-    internalLogger.api.info(logData)
+    internalLogger.api.infoRequest(logData)
   }
 }

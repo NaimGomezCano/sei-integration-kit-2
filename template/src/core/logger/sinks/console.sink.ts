@@ -1,10 +1,13 @@
+// src/logger/sinks/console.sink.ts
 import chalk from 'chalk'
 import * as clr from 'colorette'
 import dayjs from 'dayjs'
 import { colorize as jsonColorize } from 'json-colorizer'
 import winston from 'winston'
-import { LogEntryExtended } from '../types'
 
+import { LogCategory, LogEntryApiExtendedTraceable, LogEntryStdExtendedTraceable } from '../types'
+
+/* ---------- Colores JSON ---------- */
 const customTheme = {
   Whitespace: clr.white,
   Colon: clr.white,
@@ -18,8 +21,8 @@ const customTheme = {
   NullLiteral: clr.gray,
 } as const
 
-// Colores por nivel
-const levelColors: Record<string, (text: string) => string> = {
+/* ---------- Colores por nivel ---------- */
+const levelColors: Record<string, (txt: string) => string> = {
   error: clr.red,
   warn: clr.yellow,
   info: clr.green,
@@ -29,25 +32,39 @@ const levelColors: Record<string, (text: string) => string> = {
   default: clr.white,
 }
 
-export const prettyFormat = winston.format.printf((info: winston.Logform.TransformableInfo) => {
-  const logEntry = info as unknown as LogEntryExtended
+/* ---------- PARTE COMÚN ---------- */
+type CommonParts = {
+  timestampFmt: string
+  coloredTag: string
+  env: string
+  traceIdShort: string
+  level: string
+}
 
-  const timestamp = dayjs(logEntry.timestamp).isValid() ? dayjs(logEntry.timestamp).format('YYYY-MM-DD HH:mm:ss') : dayjs().format('YYYY-MM-DD HH:mm:ss')
+function buildCommonParts(info: LogEntryStdExtendedTraceable): CommonParts {
+  const timestampFmt = dayjs(info.timestamp).isValid() ? dayjs(info.timestamp).format('YYYY-MM-DD HH:mm:ss') : dayjs().format('YYYY-MM-DD HH:mm:ss')
 
-  const level = logEntry.level?.toLowerCase?.() ?? 'info'
-  const category = (logEntry.category ?? 'general').toUpperCase()
+  const level = info.level?.toLowerCase?.() ?? 'info'
+  const category = (info.category ?? 'general').toUpperCase()
   const tag = `[${category}-${level.toUpperCase()}]`
-  const colorFn = levelColors[level] || levelColors.default
-  const coloredTag = colorFn(tag)
+  const coloredTag = (levelColors[level] || levelColors.default)(tag)
 
-  const traceId = typeof logEntry.traceId === 'string' ? logEntry.traceId.slice(0, 5) : '-----'
-  const env = logEntry.environment === 'development' ? 'dev' : logEntry.environment === 'production' ? 'prod' : logEntry.environment ?? 'env'
+  const traceIdShort = typeof info.traceId === 'string' ? info.traceId.slice(0, 5) : '-----'
 
-  const message = logEntry.message ?? '[No message provided]'
-  const meta = logEntry.metadata ?? {}
+  const env = info.environment === 'development' ? 'dev' : info.environment === 'production' ? 'prod' : info.environment ?? 'env'
+
+  return { timestampFmt, coloredTag, env, traceIdShort, level }
+}
+
+/* ---------- RENDER PARA LOG ESTÁNDAR ---------- */
+function renderStd(entry: LogEntryStdExtendedTraceable, common: CommonParts): string {
+  const { timestampFmt, coloredTag, env, traceIdShort } = common
+  const message = entry.message?.replace(/^\s+/, '') || '[No message provided]'
+
+  const meta = entry.metadata ?? {}
 
   let metaString = ''
-  if (Object.keys(meta).length > 0) {
+  if (Object.keys(meta).length) {
     try {
       if (typeof meta === 'object' && !(meta instanceof Error) && !(meta instanceof Date)) {
         metaString =
@@ -65,16 +82,55 @@ export const prettyFormat = winston.format.printf((info: winston.Logform.Transfo
     }
   }
 
-  return `${env} | ${traceId} | ${timestamp} | ${coloredTag} | ${message}${metaString}`
+  return `${env} | ${traceIdShort} | ${timestampFmt} | ${coloredTag} | ${message}${metaString}`
+}
+
+/* ---------- RENDER PARA LOG API ---------- */
+function renderApi(entry: LogEntryApiExtendedTraceable, common: CommonParts): string {
+  const { timestampFmt, coloredTag, env, traceIdShort } = common
+
+  const { method, path, statusCode, durationMs, ip, userAgent, requestBody, responseBody } = entry
+
+  const requestStr = `${method} ${path}`
+  const statusStr = `${statusCode} (${durationMs} ms)`
+  const metaStr =
+    '\n' +
+    jsonColorize(
+      {
+        ip,
+        ua: userAgent,
+        body: requestBody,
+        response: responseBody,
+      },
+      { colors: customTheme, indent: 2 }
+    )
+
+  return `${env} | ${traceIdShort} | ${timestampFmt} | ${coloredTag} | ${requestStr} → ${statusStr}${metaStr}`
+}
+
+/* ---------- FORMAT WINSTON ---------- */
+const prettyFormat = winston.format.printf((raw) => {
+  // `raw` es `TransformableInfo`; lo tratamos como los tipos extendidos
+  //const base = raw as LogEntryStdExtendedTraceable
+  const common = buildCommonParts(raw as unknown as LogEntryStdExtendedTraceable)
+
+  if (raw.category === LogCategory.API) {
+    return renderApi(raw as unknown as LogEntryApiExtendedTraceable, common)
+  }
+
+  // default = STD
+  return renderStd(raw as unknown as LogEntryStdExtendedTraceable, common)
 })
 
+/* ---------- LOGGER ---------- */
 export const consoleLogger = winston.createLogger({
-  level: 'debug',
+  level: process.env.CONSOLE_LOG_LEVEL,
   format: winston.format.combine(winston.format.timestamp(), prettyFormat),
   transports: [new winston.transports.Console()],
 })
 
-export function writeToConsole(payload: Partial<LogEntryExtended> & { message?: string; level?: string }) {
-  const { message = '', level = 'info', ...rest } = payload
-  consoleLogger.log(level, message, { ...rest })
+/* ---------- writeToConsole ---------- */
+export function writeToConsole(payload: LogEntryStdExtendedTraceable | LogEntryApiExtendedTraceable) {
+  // Winston necesita un nivel y un mensaje; aquí delegamos en el formatter
+  consoleLogger.log(payload.level, '', payload)
 }

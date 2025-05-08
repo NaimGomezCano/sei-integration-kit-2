@@ -71,6 +71,14 @@ app.notFound((c) => {
   throw new ApiError(ApiErrorCodes.ROUTE_NOT_FOUND, `The requested endpoint was not found`, [c.req.url])
 })
 
+// Aqui gestiones los codigos de error HTTP que se devuelven segun el ApiErrorCodes. que tenga
+/*
+1xx	100–199	Informativos: el servidor recibió la solicitud, está procesando.
+2xx	200–299	Éxito: la solicitud fue recibida y procesada correctamente.
+3xx	300–399	Redirección: se necesita acción adicional para completar.
+4xx	400–499	Error del cliente: la solicitud tiene errores (sintaxis, etc).
+5xx	500–599	Error del servidor: el servidor falló al cumplir la solicitud.
+*/
 app.onError((err: Error, c: Context) => {
   const result = handleErrorToOperationResult(err)
 
@@ -91,9 +99,15 @@ app.onError((err: Error, c: Context) => {
     // if (err instanceof ConfigError) {
     //   return c.json(result, 500)
     // }
-  } catch (_) {
-    // fallback seguro
+  } catch (error) {
+    try {
+      internalLogger.api.error('Error critico en app.onError', err)
+    } catch (failsafe) {
+      internalLogger.api.error('Error muy critico en app.onError')
+    }
   }
+
+  //internalLogger.api.error('Error en api capturado en app.onError', err)
 
   return c.json(result, 500)
 })

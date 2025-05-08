@@ -91,8 +91,6 @@ const configSchema = z.object({
 
   BP_CARDCODE_SERIES: z.string(),
 
-  LOG_TO_FILE: booleanString,
-
   SF_CLIENT_ID: z.string(),
   SF_CLIENT_SECRET: z.string(),
   SF_USERNAME: z.string(),

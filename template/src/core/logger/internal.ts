@@ -1,13 +1,60 @@
 // src/logger/internal.ts
 
 import { dispatchLog } from './dispatcher'
-import { LogCategory, LogLevel } from './types'
+import { LogCategory, LogEntryApi, LogLevel } from './types'
 
 type StandardLogFn = (message: string, metadata?: Record<string, any>) => void
 
-type HttpLogFn = (data: { method: string; path: string; statusCode: number; durationMs: number; ip?: string; traceId?: string; userAgent?: string }) => void
+type HttpInfoRequestFn = (data: {
+  method: string
+  path: string
+  statusCode: number
+  durationMs: number
+  ip: string
+  userAgent: string
+  requestBody?: any
+  responseBody?: any
+  traceId?: string
+}) => void
 
-function createStandardCategory(category: LogCategory) {
+function createApiCategory() {
+  const fn = (level: LogLevel): StandardLogFn => {
+    return (message, metadata = {}) =>
+      dispatchLog({
+        level,
+        category: LogCategory.API,
+        message,
+        metadata,
+      })
+  }
+
+  const infoRequest = (data: LogEntryApi) => {
+    dispatchLog({
+      level: 'info',
+      category: LogCategory.API,
+      ...data,
+    })
+  }
+
+  const errorRequest = (data: LogEntryApi) => {
+    dispatchLog({
+      level: 'error',
+      category: LogCategory.API,
+      ...data,
+    })
+  }
+
+  return {
+    debug: fn('debug'),
+    info: fn('info'),
+    warn: fn('warn'),
+    error: fn('error'),
+    infoRequest,
+    errorRequest,
+  }
+}
+
+function createStdCategory(category: LogCategory) {
   const fn = (level: LogLevel): StandardLogFn => {
     return (message, metadata = {}) =>
       dispatchLog({
@@ -28,36 +75,17 @@ function createStandardCategory(category: LogCategory) {
   }
 }
 
-function createApiCategory(): Record<'debug' | 'info' | 'warn' | 'error', HttpLogFn> {
-  const fn = (level: LogLevel): HttpLogFn => {
-    return (data) =>
-      dispatchLog({
-        level,
-        category: 'api',
-        message: `${data.method} ${data.path} -> ${data.statusCode}`,
-        metadata: data,
-      })
-  }
-
-  return {
-    debug: fn('debug'),
-    info: fn('info'),
-    warn: fn('warn'),
-    error: fn('error'),
-  }
-}
-
 export const internalLogger = {
-  env: createStandardCategory('env'),
-  network: createStandardCategory('network'),
-  sql: createStandardCategory('sql'),
-  logger: createStandardCategory('logger'),
-  core: createStandardCategory('core'),
-  job: createStandardCategory('job'),
-  decorator: createStandardCategory('decorator'),
-  schedule: createStandardCategory('schedule'),
-  otel: createStandardCategory('otel'),
+  env: createStdCategory(LogCategory.Env),
+  network: createStdCategory(LogCategory.Network),
+  sql: createStdCategory(LogCategory.SQL),
+  logger: createStdCategory(LogCategory.Logger),
+  core: createStdCategory(LogCategory.Core),
+  job: createStdCategory(LogCategory.Job),
+  decorator: createStdCategory(LogCategory.Decorator),
+  schedule: createStdCategory(LogCategory.Schedule),
+  otel: createStdCategory(LogCategory.OTel),
   api: createApiCategory(),
 
-  forCategory: (cat: string) => createStandardCategory(cat),
+  //forCategory: (cat: string) => createStdCategory(cat),
 }

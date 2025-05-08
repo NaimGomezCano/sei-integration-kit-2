@@ -3,20 +3,43 @@
 import { getCurrentSpanId, getCurrentTraceId } from '../otel/utils'
 import { writeToConsole } from './sinks/console.sink'
 import { writeToFile } from './sinks/file.sink'
-import { LogEntryBase, LogEntryExtended } from './types'
+import { LogCategory, LogEntryApiExtended, LogEntryApiExtendedTraceable, LogEntryStdExtended, LogEntryStdExtendedTraceable } from './types'
 
-export function dispatchLog(entry: LogEntryBase) {
-  const traceId = getCurrentTraceId() ?? '################################'
-  const spanId = getCurrentSpanId() ?? '################################'
-  const timestamp = new Date().toISOString()
-  const environment = process.env.NODE_ENV ?? 'unknown'
+function getCommonMetadata() {
+  return {
+    traceId: getCurrentTraceId() ?? '################################',
+    spanId: getCurrentSpanId() ?? '################################',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV ?? 'unknown',
+  }
+}
 
-  const payload: LogEntryExtended = {
+function buildApiPayload(entry: LogEntryApiExtended): LogEntryApiExtendedTraceable {
+  return {
     ...entry,
-    environment: environment,
-    traceId: traceId,
-    spanId: spanId,
-    timestamp: timestamp,
+    ...getCommonMetadata(),
+  }
+}
+
+function buildStdPayload(entry: LogEntryStdExtended): LogEntryStdExtendedTraceable {
+  return {
+    ...entry,
+    ...getCommonMetadata(),
+  }
+}
+
+export function dispatchLog(entry: LogEntryStdExtended | LogEntryApiExtended) {
+  // ⇣ la unión que realmente vas a manejar
+  let payload: LogEntryStdExtendedTraceable | LogEntryApiExtendedTraceable
+
+  switch (entry.category) {
+    case LogCategory.API:
+      payload = buildApiPayload(entry as LogEntryApiExtended)
+      break
+
+    default:
+      payload = buildStdPayload(entry as LogEntryStdExtended)
+      break
   }
 
   writeToConsole(payload)

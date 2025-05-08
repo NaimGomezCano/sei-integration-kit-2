@@ -7,8 +7,7 @@ export function handledOpenAPIHono() {
   return new OpenAPIHono({
     defaultHook: (result: any, c) => {
       if (!result.success) {
-        // Aquí puedes lanzar una excepción, devolver un JSON, o loguear
-        throw result.error // O personaliza: new BizException(...)
+        throw result.error
       }
     },
   })
