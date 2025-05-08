@@ -6,6 +6,7 @@ import 'winston-daily-rotate-file'
 
 import { internalLogger } from '../internal'
 import type { LogEntryApiExtendedTraceable, LogEntryStdExtendedTraceable } from '../types'
+import { getEnvironment } from '@/shared/utils/getEnvironment'
 
 const SINK_LOG_DIR = process.env.IS_DEPLOY ? path.resolve(process.env.DEPLOY_DIR!, 'logs') : path.resolve(process.cwd(), 'logs')
 
@@ -31,7 +32,7 @@ const jsonLineFormat = winston.format.printf((info) => {
     // Fallback: nunca perder la línea
     return JSON.stringify({
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV!,
+      environment: getEnvironment().NODE_ENV,
       level: 'error',
       message: '[LOGGER_FORMAT_ERROR]',
       category: 'core',

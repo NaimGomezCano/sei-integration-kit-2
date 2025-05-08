@@ -1,98 +1,48 @@
-import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
 import stripJsonComments from 'strip-json-comments'
 import { z } from 'zod'
 import { internalLogger } from './core/logger/internal'
+import { getEnvironment } from './shared/utils/getEnvironment'
 
-internalLogger.env.info('Cargando variables de entorno cargadas desde .env.deploy y argumentos')
-
-// 🧠 Leer argumentos como --env=production y --deploy=true
-const envArg = process.argv.find((arg) => arg.startsWith('--env='))
-const deployArg = process.argv.find((arg) => arg === '--deploy=true')
-
-internalLogger.env.info('envArg', { envArg: envArg })
-internalLogger.env.info('deployArg', { deployArg: deployArg })
-internalLogger.env.info('process.env.NODE_ENV', { 'process.env.NODE_ENV': process.env.NODE_ENV })
-
-const parsedNodeEnv = envArg?.split('=')[1] ?? process.env.NODE_ENV
-const isDeploy = deployArg ? 'true' : process.env.IS_DEPLOY
-
-// ✅ Cargar .env.deploy si estamos en modo deploy
-if (isDeploy === 'true') {
-  const envFilePath = path.resolve(__dirname, '.env.deploy')
-  if (fs.existsSync(envFilePath)) {
-    dotenv.config({ path: envFilePath })
-    internalLogger.env.info('✅ Variables de entorno cargadas desde .env.deploy')
-  } else {
-    internalLogger.env.error('❌ Archivo .env.deploy no encontrado, abortando.')
-    process.exit(1)
-  }
-}
-
-// Validar NODE_ENV
-const NODE_ENV_VALUES = ['development', 'test', 'production'] as const
-type NodeEnv = (typeof NODE_ENV_VALUES)[number]
-
-const rawNodeEnv = parsedNodeEnv
-if (!rawNodeEnv || !NODE_ENV_VALUES.includes(rawNodeEnv as NodeEnv)) {
-  const msg = `❌ La variable NODE_ENV debe ser una de: ${NODE_ENV_VALUES.join(', ')}`
-  console.error(msg)
-  throw new Error(msg)
-}
-const NODE_ENV = rawNodeEnv as NodeEnv
-internalLogger.env.info(`🧩 NODE_ENV detectado: ${NODE_ENV}`)
-
-const IS_DEPLOY = isDeploy === 'true'
+// ⇢ Resuelve primero el entorno
+const { NODE_ENV, IS_DEPLOY } = getEnvironment()
+internalLogger.env.info(`🧩 Entorno detectado: ${NODE_ENV}`)
 internalLogger.env.info(`🚀 Modo Deploy: ${IS_DEPLOY ? 'Activo' : 'Desactivado'}`)
 
-// Paths de archivos de configuración
+// ⇢ Cargar configuración
 const baseConfigPath = path.resolve(`config.${NODE_ENV}.jsonc`)
 const localConfigPath = path.resolve(`config.${NODE_ENV}.local.jsonc`)
 
 let rawConfig: any = {}
-const loadedPaths: string[] = []
 
 if (IS_DEPLOY) {
-  // Configuración desde variables de entorno
   rawConfig = { ...process.env }
-  loadedPaths.push('process.env')
-  internalLogger.env.info('✅ Configuración cargada desde variables de entorno (modo deploy)')
+  internalLogger.env.info('✅ Configuración cargada desde variables de entorno (deploy)')
 } else {
   if (fs.existsSync(baseConfigPath)) {
     rawConfig = JSON.parse(stripJsonComments(fs.readFileSync(baseConfigPath, 'utf-8')))
-    loadedPaths.push(baseConfigPath)
     internalLogger.env.info(`✅ Configuración cargada desde: ${baseConfigPath}`)
   }
-
   if (fs.existsSync(localConfigPath)) {
-    const localConfig = JSON.parse(stripJsonComments(fs.readFileSync(localConfigPath, 'utf-8')))
-    rawConfig = { ...rawConfig, ...localConfig }
-    loadedPaths.push(localConfigPath)
+    const local = JSON.parse(stripJsonComments(fs.readFileSync(localConfigPath, 'utf-8')))
+    rawConfig = { ...rawConfig, ...local }
     internalLogger.env.info(`✅ Configuración local sobreescrita desde: ${localConfigPath}`)
   }
 }
 
-if (loadedPaths.length === 0) {
-  const msg = `❌ No se encontró ningún archivo de configuración válido (${baseConfigPath}, ${localConfigPath})`
-  internalLogger.env.error(msg)
-  throw new Error(msg)
-}
-
-// Boolean coercion helper
+// Helpers Zod -------------------------------------------------------------
 const booleanString = z
   .union([z.string(), z.boolean()])
-  .transform((val) => {
-    if (typeof val === 'string') {
-      return val.trim().toLowerCase() === 'true'
-    }
-    return val === true
+  .transform((v) => {
+    if (typeof v === 'string') return v.trim().toLowerCase() === 'true'
+    return v === true
   })
   .pipe(z.boolean())
 
-// Esquema de validación con Zod
+// Esquema -----------------------------------------------------------------
 const configSchema = z.object({
-  NODE_ENV: z.enum(NODE_ENV_VALUES).default(NODE_ENV),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default(NODE_ENV),
   IS_DEPLOY: z.coerce.boolean().default(IS_DEPLOY),
 
   BP_CARDCODE_SERIES: z.string(),
@@ -133,10 +83,7 @@ const configSchema = z.object({
   NODE_TLS_REJECT_UNAUTHORIZED: z.coerce.number(),
 })
 
-// Validar y exportar configuración
+// Validar y exportar -------------------------------------------------------
 export const appEnv = configSchema.parse(rawConfig)
-internalLogger.env.info('✅ Configuración validada correctamente con zod')
-internalLogger.env.info(`🔍 Configuración final`, appEnv)
-
-// 🟢 Aquí arranca tu lógica principal (servidores, workers, etc.)
-// import('./server') // ejemplo
+internalLogger.env.info('✅ Configuración validada correctamente con Zod')
+internalLogger.env.debug('🔍 Configuración final', appEnv)

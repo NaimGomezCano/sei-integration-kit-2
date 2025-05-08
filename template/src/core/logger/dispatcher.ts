@@ -1,5 +1,6 @@
 // src/logger/dispatcher.ts
 
+import { getEnvironment } from '@/shared/utils/getEnvironment'
 import { getCurrentSpanId, getCurrentTraceId } from '../otel/utils'
 import { writeToConsole } from './sinks/console.sink'
 import { writeToFile } from './sinks/file.sink'
@@ -10,7 +11,7 @@ function getCommonMetadata() {
     traceId: getCurrentTraceId() ?? '################################',
     spanId: getCurrentSpanId() ?? '################################',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV ?? 'unknown',
+    environment: getEnvironment().NODE_ENV,
   }
 }
 

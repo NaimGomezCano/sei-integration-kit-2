@@ -1,3 +1,4 @@
+import { getEnvironment } from '@/shared/utils/getEnvironment'
 import { context as otelContext, propagation } from '@opentelemetry/api'
 import { CoreError } from '../errors/core.error'
 import { boss } from './boss-instance'
@@ -21,7 +22,7 @@ export async function runJob<T = any>(queue: string, jobName: string, payload: {
   /* polling sencillo */
   const start = Date.now()
   const timeout = 120_000
-  const isDev = process.env.NODE_ENV === 'development'
+  const isDev = getEnvironment().NODE_ENV === 'development'
 
   while (true) {
     const job: any = await boss.getJobById(queue, jobId, { includeArchive: true })
