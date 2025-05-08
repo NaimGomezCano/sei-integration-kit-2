@@ -49,6 +49,12 @@ export class AxiosErrorStrategy implements ErrorStrategy {
 
         if (config.baseURL.includes(`salesforce.com`)) {
           try {
+            if (error.code === 'ERR_BAD_REQUEST') {
+              return OperationResultBuilder.error(ErrorNames.AxiosError, 'SALESFORCE_API_ERROR', `Error con la API de Salesforce - ${JSON.stringify(error!.response!.data)}`)
+            }
+          } catch {}
+
+          try {
             const errorResponse = (error as any).response?.data
             let errorMessages = ''
 
