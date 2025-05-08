@@ -37,7 +37,7 @@
 
   // Public API
   "APP_BASE_URL": "http://localhost",
-  "APP_PORT": "1884",
+  "APP_PORT": "8778",
   //////////////////////////////////////////////////////////////
 
   // Core Settings
