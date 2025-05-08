@@ -17,6 +17,8 @@ Descargar Loki desde github
 Crear carpeta C:\Loki, poner el ejecutable y agregarlo al path
 .\loki.exe --config.file=loki-config.yaml
 
+C:\Loki\loki.exe -config.file=C:\Loki\loki-config.yaml
+
 mkdir "C:\Loki\nssm-logs"
 nssm install sei-loki "C:\Loki\loki.exe" "-config.file=C:\Loki\loki-config.yaml"
 nssm set sei-loki AppDirectory "C:\Loki"
@@ -33,8 +35,9 @@ nssm start sei-loki
 
 ## Promtail
 
-mkdir "C:\Promtail\nssm-logs"
+C:\Promtail\promtail.exe -config.file=C:\Promtail\promtail-config.yaml
 
+mkdir "C:\Promtail\nssm-logs"
 nssm install sei-promtail "C:\Promtail\promtail.exe" "-config.file=C:\Promtail\promtail-config.yaml"
 nssm set sei-promtail AppDirectory "C:\Promtail"
 nssm set sei-promtail DisplayName "sei-promtail"

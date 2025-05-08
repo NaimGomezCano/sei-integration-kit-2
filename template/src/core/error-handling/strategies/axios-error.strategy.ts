@@ -44,36 +44,7 @@ export class AxiosErrorStrategy implements ErrorStrategy {
         }
       } catch {}
 
-      try {
-        const config = (error as any).config
-
-        if (config.baseURL.includes(`salesforce.com`)) {
-          try {
-            if (error.code === 'ERR_BAD_REQUEST') {
-              return OperationResultBuilder.error(ErrorNames.AxiosError, 'SALESFORCE_API_ERROR', `Error con la API de Salesforce - ${JSON.stringify(error!.response!.data)}`)
-            }
-          } catch {}
-
-          try {
-            const errorResponse = (error as any).response?.data
-            let errorMessages = ''
-
-            if (Array.isArray(errorResponse)) {
-              errorMessages = errorResponse.map((err: any) => err.message).join('\n')
-            } else if (errorResponse?.message) {
-              errorMessages = errorResponse.message
-            }
-
-            return OperationResultBuilder.error(ErrorNames.AxiosError, 'SALESFORCE_API_ERROR', `Error con la API de Salesforce - ${errorMessages} \n ${JSON.stringify(error.response)}`)
-          } catch {}
-
-          try {
-            return OperationResultBuilder.error(ErrorNames.AxiosError, `SALESFORCE_API_ERROR`, `Error con la API de Salesforce - ${JSON.stringify((error as any).response.data)}`)
-          } catch {}
-
-          return OperationResultBuilder.error(ErrorNames.AxiosError, `SALESFORCE_API_ERROR`, `Error con la API de Salesforce`)
-        }
-      } catch {}
+     
     }
 
     try {

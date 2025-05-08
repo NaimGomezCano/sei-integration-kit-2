@@ -7,7 +7,7 @@ export class ContactJobSchedules {
   scheduleJobs() {
     schedule({
       job: contactJobs.sfCreateorUpdateContactsBatch,
-      cron: '0 7 * * *',
+      cron: '0 8 * * *',
       runOnInit: false, //  runOnInit: true,,
     })
   }

@@ -7,8 +7,8 @@ export class AccountJobSchedules {
   scheduleJobs() {
     schedule({
       job: accountJobs.sfCreateorUpdateAccountsBatch,
-      cron: '0 3 * * *',
-      runOnInit: true,
+      cron: '0 4 * * *',
+      runOnInit: false,
     })
   }
 }
