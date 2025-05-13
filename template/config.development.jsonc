@@ -6,14 +6,14 @@
   "SF_PASSWORD": "NTSInteg042025",
 
   // SBO Service Layer
-  "SBO_SL_URL": "https://server-sap:50000",
+  "SBO_SL_URL": "https://server-sap.stpg.local:50000",
   "SBO_SL_USER": "manager",
   "SBO_SL_PASSWD": "seidor",
   "SBO_SL_DB_NAME": "TEST_SKINTECH_ES",
   ///////////////////////////////////////////////////////////////
 
   // SBO API GATEWAY
-  "SBO_API_GATEWAY_BASE_URL": "https://server-sap:60020",
+  "SBO_API_GATEWAY_BASE_URL": "https://server-sap.stpg.local:60020",
   "SBO_API_GATEWAY_USER": "manager",
   "SBO_API_GATEWAY_PASSWD": "seidor",
   "SBO_API_GATEWAY_DB_NAME": "TEST_SKINTECH_ES",
@@ -22,7 +22,7 @@
 
   // SQL
   "SBO_DB_TYPE": "MSSQL",
-  "SBO_DB_HOST": "server-sap",
+  "SBO_DB_HOST": "server-sap.stpg.local",
   "SBO_DB_PORT": "30015",
   "SBO_DB_USER": "sa",
   "SBO_DB_PASSWD": "SAPB1Admin",
@@ -39,6 +39,13 @@
   "APP_BASE_URL": "http://localhost",
   "APP_PORT": "8778",
   //////////////////////////////////////////////////////////////
+
+  // PG BOSS
+  "PG_BOSS_USER": "seidor",
+  "PG_BOSS_PASSWORD": "seidor",
+  "PG_BOSS_HOST": "server-sap.stpg.local",
+  "PG_BOSS_PORT": "5432",
+  "PG_BOSS_DB": "sf_integration_test",
 
   // Core Settings
   "JWT_SECRET": "0b3f1464e30da1a9eaa0ebc5d5a565ee99f5e9666522f34c736df16d8bd1fd84",
