@@ -7,6 +7,7 @@
       "name": "Debug with Hot reload",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "run-debug"],
+      "experimentalNetworking": "off",
       "env": {
         "NODE_ENV": "${input:envSelector}"
       },
@@ -20,6 +21,7 @@
       "name": "Debug",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "start-debug"],
+      "experimentalNetworking": "off",
       "env": {
         "NODE_ENV": "${input:envSelector}"
       },

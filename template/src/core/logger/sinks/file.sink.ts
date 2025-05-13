@@ -4,9 +4,9 @@ import path from 'path'
 import winston from 'winston'
 import 'winston-daily-rotate-file'
 
+import { getEnvironment } from '@/shared/utils/getEnvironment'
 import { internalLogger } from '../internal'
 import type { LogEntryApiExtendedTraceable, LogEntryStdExtendedTraceable } from '../types'
-import { getEnvironment } from '@/shared/utils/getEnvironment'
 
 const SINK_LOG_DIR = process.env.IS_DEPLOY ? path.resolve(process.env.DEPLOY_DIR!, 'logs') : path.resolve(process.cwd(), 'logs')
 

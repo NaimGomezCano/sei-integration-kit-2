@@ -1,5 +1,8 @@
 import 'dotenv/config'
 import 'source-map-support/register'
+import { internalLogger } from './core/logger/internal'
+
+internalLogger.core.info('ea')
 
 import './__auto_imports__'
 
@@ -9,15 +12,12 @@ import { runPendingSchedules } from './core/croner/croner-scheduler'
 import { boss } from './core/jobs/boss-instance'
 import { startAllWorkers } from './core/jobs/worker'
 import { logger } from './core/logger'
-import { internalLogger } from './core/logger/internal'
 import { initializeTelemetry } from './core/otel/initialize-telemetry'
 import openAPIHono from './core/public-api'
 import { getAppWelcomeInfo } from './shared/utils/global'
 
 async function bootstrap() {
   try {
-  
-
     logger.info('Starting Application...')
 
     // 1. Inicializar Telemetría
