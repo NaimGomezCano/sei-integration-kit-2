@@ -37,8 +37,15 @@
 
   // Public API
   "APP_BASE_URL": "http://localhost",
-  "APP_PORT": "1885",
+  "APP_PORT": "15146",
   //////////////////////////////////////////////////////////////
+
+  // PG BOSS
+  "PG_BOSS_USER": "seidor",
+  "PG_BOSS_PASSWORD": "seidor",
+  "PG_BOSS_HOST": "server-sap.stpg.local",
+  "PG_BOSS_PORT": "5432",
+  "PG_BOSS_DB": "sf_integration_test",
 
   // Core Settings
   "JWT_SECRET": "0b3f1464e30da1a9eaa0ebc5d5a565ee99f5e9666522f34c736df16d8bd1fd84",

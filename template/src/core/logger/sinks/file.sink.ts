@@ -12,7 +12,7 @@ const SINK_LOG_DIR = process.env.IS_DEPLOY ? path.resolve(process.env.DEPLOY_DIR
 
 if (!fs.existsSync(SINK_LOG_DIR)) {
   fs.mkdirSync(SINK_LOG_DIR, { recursive: true })
-  internalLogger.core.info(`[FileSink] Carpeta de logs creada: ${SINK_LOG_DIR}`)
+ // internalLogger.core.info(`[FileSink] Carpeta de logs creada: ${SINK_LOG_DIR}`)
 }
 
 const fileTransport = new winston.transports.DailyRotateFile({
@@ -51,9 +51,6 @@ export function writeToFile(payload: LogEntryStdExtendedTraceable | LogEntryApiE
   try {
     fileLogger.log(payload.level, '', payload)
   } catch (err) {
-    internalLogger.core.error('[FileSink] Error al escribir log', {
-      module: 'file.sink',
-      error: { message: (err as Error).message, stack: (err as Error).stack },
-    })
+    
   }
 }

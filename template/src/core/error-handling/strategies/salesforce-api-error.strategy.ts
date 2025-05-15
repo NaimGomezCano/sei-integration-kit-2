@@ -25,39 +25,23 @@ export class SalesforceApiErrorStrategy implements ErrorStrategy {
   }
 
   format(error: AxiosError): OperationResultBuilder<null> {
-    let result: any = ''
+    try {
+      const result = OperationResultBuilder.error(ErrorNames.SalesforceApiError, error.code ?? '', `Error con la API de Salesforce - ${JSON.stringify(error.response)}`)
+      return result
+    } catch {}
 
     try {
-      const config = (error as any).config
+      const result = OperationResultBuilder.error(ErrorNames.SalesforceApiError, error.code ?? '', `Error con la API de Salesforce - ${JSON.stringify(error)}`)
+      return result
+    } catch {}
 
-      if (config.baseURL.includes(`salesforce.com`)) {
-        try {
-          if (error.code === 'ERR_BAD_REQUEST') {
-            result = OperationResultBuilder.error(ErrorNames.AxiosError, 'SALESFORCE_API_ERROR', `Error con la API de Salesforce - ${JSON.stringify(error!.response!.data)}`)
-          }
-        } catch {}
-
-        try {
-          const errorResponse = (error as any).response?.data
-          let errorMessages = ''
-
-          if (Array.isArray(errorResponse)) {
-            errorMessages = errorResponse.map((err: any) => err.message).join('\n')
-          } else if (errorResponse?.message) {
-            errorMessages = errorResponse.message
-          }
-
-          result = OperationResultBuilder.error(ErrorNames.AxiosError, 'SALESFORCE_API_ERROR', `Error con la API de Salesforce - ${errorMessages} \n ${JSON.stringify(error.response)}`)
-        } catch {}
-
-        try {
-          result = OperationResultBuilder.error(ErrorNames.AxiosError, `SALESFORCE_API_ERROR`, `Error con la API de Salesforce - ${JSON.stringify((error as any).response.data)}`)
-        } catch {}
-
-        result = OperationResultBuilder.error(ErrorNames.AxiosError, `SALESFORCE_API_ERROR`, `Error con la API de Salesforce`)
+    try {
+      if (error.code === 'ERR_BAD_REQUEST') {
+        const result = OperationResultBuilder.error(ErrorNames.SalesforceApiError, error.code, `Error con la API de Salesforce - ${JSON.stringify(error!.response!.data)}`)
+        return result
       }
     } catch {}
 
-    return result
+    return OperationResultBuilder.error(ErrorNames.SalesforceApiError, '?', `Error con la API de Salesforce - No se ha podido obtener el error exacto`)
   }
 }

@@ -2,11 +2,7 @@ import { RegisterRoute } from '@/core/public-api/decorators/register-route.decor
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import SapReportsOrders from '../services/reports-orders.service'
 
-@RegisterRoute({
-  version: 'api/v1',
-  subPath: 'integrations/salesforce',
-  auth: true,
-})
+
 export class ReportOrder {
   buildRoutes(app: OpenAPIHono): void {
     const service = new SapReportsOrders()

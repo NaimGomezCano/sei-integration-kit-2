@@ -1,4 +1,4 @@
-import { context as otelContext, SpanContext, trace } from '@opentelemetry/api'
+import { context as otelContext, trace } from '@opentelemetry/api'
 
 /**
  * Ejecuta una función dentro de un span y adjunta traceId en caso de error.
@@ -40,22 +40,4 @@ export async function runInSpan<T>(spanName: string, fn: () => Promise<T> | T, a
       span.end()
     }
   })
-}
-
-/**
- * Permite recrear un contexto a partir de un traceId (fuera del contexto original).
- */
-export function restoreContextFromTraceId(traceId: string) {
-  const tracer = trace.getTracer('manual')
-
-  const dummySpanContext: SpanContext = {
-    traceId,
-    spanId: '0000000000000001',
-    traceFlags: 1,
-    isRemote: false,
-  }
-
-  const dummySpan = trace.wrapSpanContext(dummySpanContext)
-
-  return otelContext.with(trace.setSpan(otelContext.active(), dummySpan), () => {})
 }
