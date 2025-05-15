@@ -125,11 +125,14 @@ const configSchema = z.object({
   SBO_API_GATEWAY_DB_NAME: z.string().nullish(),
   SBO_API_GATEWAY_DB_INSTANCE: z.string().nullish(),
 
-  PG_BOSS_USER : z.string().nullish(),
-  PG_BOSS_PASSWORD : z.string().nullish(),
-  PG_BOSS_HOST : z.string().nullish(),
-  PG_BOSS_PORT : z.string().nullish(),
-  PG_BOSS_DB : z.string().nullish(),
+  PG_BOSS_USER: z.string().nullish(),
+  PG_BOSS_PASSWORD: z.string().nullish(),
+  PG_BOSS_HOST: z.string().nullish(),
+  PG_BOSS_PORT: z.string().nullish(),
+  PG_BOSS_DB: z.string().nullish(),
+
+  AUTH_PUBLIC_API_PASSWORD: z.string().nullish(),
+  AUTH_PUBLIC_API_USERNAME: z.string().nullish(),
 
   JWT_SECRET: z.string(),
   JWT_EXPIRES_IN: z.string(),

@@ -4,7 +4,7 @@ import { z } from 'zod'
 const SfClientSchema = z.object({
   SalesforceId: z.string().nullish(),
   Active: z.boolean().nullish(),
-  U_STPG_Origin: z.string().nullish(),
+  Origin: z.string().nullish(),
   BillToDefault: z.string().nullish(),
   ShipToDefault: z.string().nullish(),
   BillToCity: z.string().nullish(),

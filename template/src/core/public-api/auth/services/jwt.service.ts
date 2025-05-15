@@ -6,7 +6,7 @@ import type { LoginBody, LoginResponse } from '../schemas/jwt.schema'
 
 export class JwtService {
   async login(credentials: LoginBody, issuer?: string, audience?: string): Promise<LoginResponse> {
-    if (credentials.username !== 'skintech-sandbox' || credentials.password !== 'rvndcd185x7ybfr5uh') {
+    if (credentials.username !==  appEnv.AUTH_PUBLIC_API_USERNAME  || credentials.password !== appEnv.AUTH_PUBLIC_API_PASSWORD ) {
       throw new ApiError(ApiErrorCodes.BEARER_TOKEN_INVALID, 'The credentials provided are invalid.')
     }
 

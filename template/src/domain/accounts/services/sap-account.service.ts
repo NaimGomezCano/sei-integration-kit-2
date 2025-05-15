@@ -28,7 +28,7 @@ export default class SapAccountService {
 
     const bpDraft: typeof SapBusinessPartner.Draft = {}
 
-    bpDraft.U_STPG_Origin = input.U_STPG_Origin
+    bpDraft.U_STPG_Origin = input.Origin
     bpDraft.U_STPG_Type = input.STPGType
     bpDraft.PeymentMethodCode = input.PaymentMethodCode
     bpDraft.CardName = input.CardName
@@ -115,7 +115,7 @@ export default class SapAccountService {
 
     bpDraft.U_SEI_SFINT_ORI = 'SF'
     bpDraft.Series = Number(appEnv.BP_CARDCODE_SERIES)
-    bpDraft.U_STPG_Origin = input.U_STPG_Origin
+    bpDraft.U_STPG_Origin = input.Origin
     bpDraft.U_STPG_Type = input.STPGType
     bpDraft.PeymentMethodCode = input.PaymentMethodCode
     bpDraft.U_SEI_SFID = input.SalesforceId

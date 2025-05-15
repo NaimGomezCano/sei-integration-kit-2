@@ -2,8 +2,8 @@ import { ApiError } from '@/core/errors/api.error'
 import { ApiErrorCodes } from '@/core/errors/error-codes'
 import { Context } from 'hono'
 import { getCookie } from 'hono/cookie'
-import { jwtStrategy } from './jwt.strategy'
 import { appEnv } from '@/appEnv'
+import { jwtStrategy } from '../auth.utils'
 
 export async function bearerStrategy(c: Context, authHeader?: string): Promise<{ payload: unknown }> {
   const cookieToken = getCookie(c, appEnv.JWT_COOKIE_NAME) // TODO: Parametrlizarlo

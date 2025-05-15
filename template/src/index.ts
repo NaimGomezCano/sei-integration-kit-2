@@ -62,3 +62,34 @@ async function bootstrap() {
 }
 
 bootstrap()
+
+/*;import { JobManager } from './core/jobsNew/job-manager'
+(async () => {
+  // Inicializar PgBoss (usar cadena de conexión apropiada)
+  const boss = new PgBoss(`postgres://${appEnv.PG_BOSS_USER}:${appEnv.PG_BOSS_PASSWORD}@${appEnv.PG_BOSS_HOST}:${appEnv.PG_BOSS_PORT}/${appEnv.PG_BOSS_DB}`)
+  await boss.start()
+
+  // Inicializar el gestor de jobs y lanzar los workers
+  const jobManager = new JobManager(boss)
+  await jobManager.startAllWorkers()
+  console.log('Workers iniciados. Esperando ejecución de jobs...')
+
+  // Simular un contexto OTEL activo antes de disparar un job (normalmente ya existiría si está instrumentado)
+
+  const span = trace.getTracer('default').startSpan('demo-span')
+  await context.with(trace.setSpan(context.active(), span), async () => {
+    try {
+      // Trigger del job "processData"
+      const result = await jobManager.trigger('processData', 7)
+      console.log(`Resultado del job: ${result}`) // Debería imprimir 49
+    } catch (err) {
+      console.error('Error en job:', err)
+    } finally {
+      span.end()
+    }
+  })
+
+  await boss.stop()
+})()
+
+*/

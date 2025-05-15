@@ -1,7 +1,7 @@
 import { internalLogger } from '@/core/logger/internal'
 import { RouteRegistry } from '@/core/public-api/route-registry'
 import { handledOpenAPIHono } from '../handledOpenAPIHono'
-import { bearerAuthMiddleware } from '../middlewares/bearer-auth.middleware'
+import { authMiddleware } from '../middlewares/auth.middleware'
 import { otelSpanMiddleware } from '../middlewares/otel-span.middleware'
 
 interface RegisterRouteOptions {
@@ -23,7 +23,8 @@ export function RegisterRoute(options?: RegisterRouteOptions) {
       if (requireAuth) {
         routesApp.use('*', otelSpanMiddleware)
         //routesApp.use('*', loggerMiddleware)
-        routesApp.use('*', bearerAuthMiddleware)
+        //routesApp.use('*', bearerAuthMiddleware)
+        routesApp.use('*', authMiddleware)
       }
 
       if (typeof instance.buildRoutes !== 'function') {

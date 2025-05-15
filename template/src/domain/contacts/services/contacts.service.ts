@@ -29,7 +29,7 @@ export default class ContactsService {
     contactDraft.Name = input.Name
     contactDraft.FirstName = input.FirstName
     contactDraft.LastName = input.LastName
-    contactDraft.E_Mail = input.E_Mail
+    contactDraft.E_Mail = input.Email
     contactDraft.Phone1 = input.Phone1
     contactDraft.MobilePhone = input.MobilePhone
     contactDraft.Title = input.Title
@@ -57,7 +57,7 @@ export default class ContactsService {
     existingContact.Name = input.Name
     existingContact.FirstName = input.FirstName
     existingContact.LastName = input.LastName
-    existingContact.E_Mail = input.E_Mail
+    existingContact.E_Mail = input.Email
     existingContact.Phone1 = input.Phone1
     existingContact.MobilePhone = input.MobilePhone
     existingContact.Title = input.Title

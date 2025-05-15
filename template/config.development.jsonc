@@ -38,6 +38,8 @@
   // Public API
   "APP_BASE_URL": "http://localhost",
   "APP_PORT": "8888",
+  "AUTH_PUBLIC_API_USERNAME": "skintech-sandbox",
+  "AUTH_PUBLIC_API_PASSWORD": "rvndcd185x7ybfr5uh", 
   //////////////////////////////////////////////////////////////
 
   // PG BOSS

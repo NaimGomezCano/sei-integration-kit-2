@@ -5,7 +5,7 @@ const SfContactSchema = z.object({
   SalesforceId: z.string().nullish(),
   FirstName: z.string().nullish(),
   LastName: z.string().nullish(),
-  E_Mail: z.string().nullish(),
+  Email: z.string().nullish(),
   Phone1: z.string().nullish(),
   Position: z.string().nullish(),
   MobilePhone: z.string().nullish(),
